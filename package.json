@@ -1,9 +1,9 @@
 {
 	"name": "jrx",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"type": "module",
 	"scripts": {
-		"prepublishOnly": "npx tsc index.ts retry.ts --target esnext --declaration --moduleResolution node",
+		"prepublishOnly": "npx tsc index.ts retry.ts computed.ts --target esnext --declaration --moduleResolution node",
 		"test": "node --test tests/*.test.ts",
 		"test:coverage": "node --test --experimental-test-coverage tests/*.test.ts"
 	},

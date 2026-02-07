@@ -4,3 +4,5 @@ node_modules/
 /index.js
 /retry.d.ts
 /retry.js
+/computed.d.ts
+/computed.js
