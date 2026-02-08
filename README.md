@@ -17,6 +17,18 @@ npm install jrx
 - Composable reactive utilities
 - Browser and Node.js compatible
 
+## API Overview
+
+- [`makeRenderLoop()`](#makerenderloop) - Render loops with automatic cleanup
+- [`addInterval(cb, ms)`](#addintervalcb-ms) - Repeating intervals with cleanup
+- [`addIntervalAsync(cb, ms)`](#addintervalasynccb-ms) - Async intervals with cancellation
+- [`addRequestAnimationFrame(cb)`](#addrequestanimationframecb) - Animation frame loops
+- [`addSubs(subs, cb, options?)`](#addsubssubs-cb-options) - Multiple subscription management
+- [`addTimeout(cb, ms)`](#addtimeoutcb-ms) - Timeouts with cleanup
+- [`addTransition(cb, durationMs)`](#addtransitioncb-durationms) - Progress-based animations
+- [`computed(fn, getDeps?)`](#computedfn-getdeps) - Memoized computed values
+- [`retry(cb, options?)`](#retrycb-options) - Async retry with exponential backoff
+
 ## API
 
 ### `makeRenderLoop()`
@@ -49,11 +61,13 @@ dispose()
 
 Creates a repeating interval with cleanup. The callback can optionally return a cleanup function that runs before the next invocation.
 
+**Note:** The callback fires **immediately** on first call, then waits `ms` milliseconds **after** the previous callback completes. This is not a fixed-rate timer.
+
 ```typescript
 import { addInterval } from 'jrx'
 
 const dispose = addInterval(() => {
-  console.log('Tick')
+  console.log('Tick') // Called immediately, then every 1000ms after completion
 
   // Optional: return cleanup function
   return () => {
@@ -69,10 +83,13 @@ dispose()
 
 Async version of `addInterval`. Waits for the callback to complete before scheduling the next invocation.
 
+**Note:** The callback fires **immediately** on first call, then waits `ms` milliseconds **after** the previous async callback completes.
+
 ```typescript
 import { addIntervalAsync } from 'jrx'
 
 const dispose = addIntervalAsync(async (disposer) => {
+  // Called immediately, then 5000ms after each completion
   await fetchData()
 
   // Check if disposed during async operation
@@ -196,6 +213,8 @@ console.log(value2.value) // Recomputed: 12
 
 Retries an async operation with exponential backoff on failure.
 
+**Default backoff:** `[5, 5, 10, 10, 20, 20, 40, 40, 60, -1]` seconds (where `-1` means retry forever with 60s delay)
+
 ```typescript
 import retry from 'jrx/retry'
 
@@ -249,7 +268,8 @@ console.log(data) // T | undefined
 ```
 
 **Options:**
-- `backoffSec`: Array of retry delays in seconds. Use `-1` for infinite retries with the last delay. Default: `[5, 5, 10, 10, 20, 20, 40, 40, 60, -1]`
+- `backoffSec`: Array of retry delays in seconds. Use `-1` for infinite retries with the last delay.
+  - Default: `[5, 5, 10, 10, 20, 20, 40, 40, 60, -1]`
 - `disposer`: Optional disposer for cancellation. When provided, the return type is `T | undefined`. Otherwise, the return type is `T`.
 
 **Callback parameters:**
