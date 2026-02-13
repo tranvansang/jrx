@@ -53,6 +53,15 @@ export function addIntervalAsync(
 }
 
 export function addRequestAnimationFrame(cb: (now: DOMHighResTimeStamp) => void | (() => any)) {
+	const disposer = makeDisposer()
+	const raf = requestAnimationFrame(now => disposer.add(cb(now)))
+	return () => {
+		disposer.dispose()
+		cancelAnimationFrame(raf)
+	}
+}
+
+export function addRequestAnimationFrameLoop(cb: (now: DOMHighResTimeStamp) => void | (() => any)) {
 	const reset = makeReset()
 	let raf = requestAnimationFrame(wrapper)
 	return () => {

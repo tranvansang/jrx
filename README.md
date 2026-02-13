@@ -22,7 +22,8 @@ npm install jrx
 - [`makeRenderLoop()`](#makerenderloop) - Render loops with automatic cleanup
 - [`addInterval(cb, ms)`](#addintervalcb-ms) - Repeating intervals with cleanup
 - [`addIntervalAsync(cb, ms)`](#addintervalasynccb-ms) - Async intervals with cancellation
-- [`addRequestAnimationFrame(cb)`](#addrequestanimationframecb) - Animation frame loops
+- [`addRequestAnimationFrame(cb)`](#addrequestanimationframecb) - Single animation frame with cleanup
+- [`addRequestAnimationFrameLoop(cb)`](#addrequestanimationframeloopcb) - Animation frame loops
 - [`addSubs(subs, cb, options?)`](#addsubssubs-cb-options) - Multiple subscription management
 - [`addTimeout(cb, ms)`](#addtimeoutcb-ms) - Timeouts with cleanup
 - [`addTransition(cb, durationMs)`](#addtransitioncb-durationms) - Progress-based animations
@@ -103,7 +104,7 @@ dispose()
 
 ### `addRequestAnimationFrame(cb)`
 
-Creates a `requestAnimationFrame` loop with cleanup.
+Executes a callback on the next animation frame with cleanup.
 
 ```typescript
 import { addRequestAnimationFrame } from 'jrx'
@@ -117,6 +118,27 @@ const dispose = addRequestAnimationFrame((now) => {
   }
 })
 
+// Cancel if needed before the frame fires
+dispose()
+```
+
+### `addRequestAnimationFrameLoop(cb)`
+
+Creates a continuous `requestAnimationFrame` loop with cleanup.
+
+```typescript
+import { addRequestAnimationFrameLoop } from 'jrx'
+
+const dispose = addRequestAnimationFrameLoop((now) => {
+  updateAnimation(now)
+
+  // Optional: return cleanup function
+  return () => {
+    cleanupAnimation()
+  }
+})
+
+// Stop the loop
 dispose()
 ```
 
@@ -289,7 +311,7 @@ const disposer = makeDisposer()
 // Collect disposers
 disposer.add(addInterval(() => console.log('tick'), 1000))
 disposer.add(addTimeout(() => console.log('timeout'), 5000))
-disposer.add(addRequestAnimationFrame((now) => render(now)))
+disposer.add(addRequestAnimationFrameLoop((now) => render(now)))
 
 // Cleanup all at once
 disposer.dispose()
