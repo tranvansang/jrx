@@ -3,7 +3,7 @@
 	"version": "0.2.0",
 	"type": "module",
 	"scripts": {
-		"prepublishOnly": "npx tsc index.ts retry.ts computed.ts addEvtListener.ts",
+		"prepublishOnly": "npx tsc",
 		"test": "node --test tests/*.test.ts",
 		"test:coverage": "node --test --experimental-test-coverage tests/*.test.ts"
 	},
