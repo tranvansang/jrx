@@ -30,6 +30,7 @@ npm i jrx
 - [`addTransition(cb, durationMs)`](#addtransitioncb-durationms) - Progress-based animations
 - [`computed(fn, getDeps?)`](#computedfn-getdeps) - Memoized computed values
 - [`retry(cb, options?)`](#retrycb-options) - Async retry with exponential backoff
+- [`addRetry(cb, options?)`](#addretrycb-options) - Fire-and-forget retry with disposal
 
 ## API
 
@@ -320,6 +321,37 @@ console.log(data) // T | undefined
 **Callback parameters:**
 - `disposer`: A disposer for the current retry attempt. Check `disposer.signal.aborted` to handle cancellation
 - `info.resetBackoff()`: Call this to reset the backoff counter to the beginning (useful when making partial progress)
+
+### `addRetry(cb, options?)`
+
+Fire-and-forget version of `retry`. Starts the retry loop in the background and returns a dispose function to cancel it.
+
+```typescript
+import {addRetry} from 'jrx'
+
+// Start a retry loop in the background
+const dispose = addRetry(async (disposer, { resetBackoff }) => {
+  const response = await fetch('/api/data')
+  if (!response.ok) throw new Error('Failed')
+  processData(await response.json())
+})
+
+// Cancel the retry loop
+dispose()
+
+// With custom backoff
+const dispose2 = addRetry(
+  async (disposer) => {
+    await connectWebSocket()
+  },
+  { backoffSec: [1, 2, 5, -1] }
+)
+
+dispose2()
+```
+
+**Options:**
+- `backoffSec`: Array of retry delays in seconds (same as `retry`)
 
 ## Cleanup Pattern
 

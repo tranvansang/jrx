@@ -1,4 +1,4 @@
-import {type Disposer, makeReset} from 'jdisposer'
+import {type Disposer, makeDisposer, makeReset} from 'jdisposer'
 
 // without passing disposer, result will always be defined
 export default async function retry<T>(
@@ -48,4 +48,15 @@ export default async function retry<T>(
 			await new Promise(resolve => setTimeout(resolve, backoffSec[count - 1] * 1000))
 		}
 	}
+}
+
+export function addRetry<T>(
+	cb: (disposer: Disposer, info: {resetBackoff(): void}) => T | Promise<T>,
+	options?: {
+		backoffSec?: number[]
+	},
+) {
+	const disposer = makeDisposer()
+	void retry(cb, {...options, disposer})
+	return disposer.dispose
 }

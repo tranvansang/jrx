@@ -1,10 +1,10 @@
 import {type Disposer, makeDisposer, makeReset} from 'jdisposer'
 
-import retry from './retry.js'
+import retry, {addRetry} from './retry.js'
 import computed from './computed.js'
 import addEvtListener from './addEvtListener.js'
 
-export {retry, computed, addEvtListener}
+export {retry, computed, addEvtListener, addRetry}
 
 export function makeRenderLoop() {
 	let loop_: ((time: DOMHighResTimeStamp) => void | (() => void)) | undefined
