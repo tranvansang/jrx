@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert'
-import {addTimeout} from '../index.ts'
+import {addTimeout} from '../index.js'
 
 test('addTimeout - returns a disposer function', () => {
 	const dispose = addTimeout(() => {}, 100)

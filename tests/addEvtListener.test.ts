@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert'
-import {addEvtListener} from '../index.ts'
+import addEvtListener from '../addEvtListener.js'
 
 function createTarget() {
 	const listeners: {event: string; handler: any; option?: any}[] = []
@@ -62,7 +62,7 @@ test('addEvtListener - removeEventListener receives same arguments', () => {
 	}
 	const handler = () => {}
 	const option = {capture: true}
-	const dispose = addEvtListener(target, 'keydown', handler, option)
+	const dispose = addEvtListener(target, 'keydown' as any, handler, option)
 	dispose()
 
 	assert.strictEqual(removeCalls.length, 1, 'removeEventListener should be called once')

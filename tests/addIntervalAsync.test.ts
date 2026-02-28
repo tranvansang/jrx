@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert'
-import {addIntervalAsync} from '../index.ts'
+import {addIntervalAsync} from '../index.js'
 
 test('addIntervalAsync - returns a disposer function', () => {
 	const dispose = addIntervalAsync(() => {}, 100)

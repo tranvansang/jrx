@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert'
-import {addSubs} from '../index.ts'
+import {addSubs} from '../index.js'
 
 // Helper to create a mock subscription
 function createMockSub() {

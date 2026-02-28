@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert'
-import {addTransition} from '../index.ts'
+import {addTransition} from '../index.js'
 
 // Mock requestAnimationFrame and cancelAnimationFrame for Node.js environment
 function setupRAFMocks() {

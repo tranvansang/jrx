@@ -6,3 +6,5 @@ node_modules/
 /retry.js
 /computed.d.ts
 /computed.js
+/addEvtListener.d.ts
+/addEvtListener.js

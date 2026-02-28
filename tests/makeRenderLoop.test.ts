@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert'
-import {makeRenderLoop} from '../index.ts'
+import {makeRenderLoop} from '../index.js'
 
 test('makeRenderLoop - basic functionality', () => {
 	const renderLoop = makeRenderLoop()

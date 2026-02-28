@@ -1,6 +1,6 @@
 import {test} from 'node:test'
-import assert from 'node:assert'
-import retry from '../retry.ts'
+import {ok} from 'node:assert'
+import retry from '../retry.js'
 import {makeDisposer} from 'jdisposer'
 
 test('retry - successful first attempt', async () => {
@@ -21,10 +21,10 @@ test('retry - callback receives disposer and info', async () => {
 		return true
 	})
 
-	assert.ok(receivedDisposer, 'callback should receive disposer')
-	assert.ok(receivedDisposer.signal, 'disposer should have signal')
-	assert.ok(receivedInfo, 'callback should receive info')
-	assert.ok(typeof receivedInfo.resetBackoff === 'function', 'info should have resetBackoff function')
+	ok(receivedDisposer, 'callback should receive disposer')
+	ok(receivedDisposer.signal, 'disposer should have signal')
+	ok(receivedInfo, 'callback should receive info')
+	ok(typeof receivedInfo.resetBackoff === 'function', 'info should have resetBackoff function')
 })
 
 test('retry - retries on error and succeeds', async () => {

@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert'
-import computed from '../computed.ts'
+import computed from '../computed.js'
 
 test('computed - returns an object with value getter', () => {
 	const c = computed(() => 42)
