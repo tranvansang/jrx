@@ -5,7 +5,7 @@ A lightweight TypeScript library for managing side effects, subscriptions, and a
 ## Installation
 
 ```bash
-npm install jrx
+npm i jrx
 ```
 
 ## Features
@@ -20,6 +20,7 @@ npm install jrx
 ## API Overview
 
 - [`makeRenderLoop()`](#makerenderloop) - Render loops with automatic cleanup
+- [`addEvtListener(target, event, handler, option?)`](#addevtlistenertarget-event-handler-option) - Event listeners with cleanup
 - [`addInterval(cb, ms)`](#addintervalcb-ms) - Repeating intervals with cleanup
 - [`addIntervalAsync(cb, ms)`](#addintervalasynccb-ms) - Async intervals with cancellation
 - [`addRequestAnimationFrame(cb)`](#addrequestanimationframecb) - Single animation frame with cleanup
@@ -56,6 +57,28 @@ requestAnimationFrame(loop)
 
 // Cleanup
 dispose()
+```
+
+### `addEvtListener(target, event, handler, option?)`
+
+Adds an event listener to a target and returns a disposer that removes it. Works with any object that implements `addEventListener`/`removeEventListener` (DOM elements, `window`, `document`, etc.).
+
+```typescript
+import { addEvtListener } from 'jrx'
+
+// Basic usage
+const dispose = addEvtListener(window, 'resize', (e) => {
+  console.log('Window resized', e)
+})
+
+// With options
+const dispose2 = addEvtListener(element, 'click', (e) => {
+  console.log('Clicked', e)
+}, { capture: true })
+
+// Cleanup
+dispose()
+dispose2()
 ```
 
 ### `addInterval(cb, ms)`
@@ -238,7 +261,7 @@ Retries an async operation with exponential backoff on failure.
 **Default backoff:** `[5, 5, 10, 10, 20, 20, 40, 40, 60, -1]` seconds (where `-1` means retry forever with 60s delay)
 
 ```typescript
-import retry from 'jrx/retry'
+import {retry} from 'jrx'
 
 // Basic usage - retries with default backoff
 const result = await retry(async (disposer, { resetBackoff }) => {
