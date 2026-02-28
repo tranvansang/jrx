@@ -1,5 +1,5 @@
 import {test} from 'node:test'
-import {ok} from 'node:assert'
+import {ok, strictEqual, deepStrictEqual, rejects, notStrictEqual} from 'node:assert'
 import retry from '../retry.js'
 import {makeDisposer} from 'jdisposer'
 
@@ -8,7 +8,7 @@ test('retry - successful first attempt', async () => {
 		return 42
 	})
 
-	assert.strictEqual(result, 42, 'should return result on first success')
+	strictEqual(result, 42, 'should return result on first success')
 })
 
 test('retry - callback receives disposer and info', async () => {
@@ -41,8 +41,8 @@ test('retry - retries on error and succeeds', async () => {
 		{backoffSec: [0.01, 0.01, 0.01]}
 	)
 
-	assert.strictEqual(attemptCount, 3, 'should make 3 attempts')
-	assert.strictEqual(result, 'success', 'should return success result')
+	strictEqual(attemptCount, 3, 'should make 3 attempts')
+	strictEqual(result, 'success', 'should return success result')
 })
 
 test('retry - uses default backoff seconds', async () => {
@@ -56,8 +56,8 @@ test('retry - uses default backoff seconds', async () => {
 		return 'success'
 	})
 
-	assert.strictEqual(attemptCount, 2, 'should retry with default backoff')
-	assert.strictEqual(result, 'success')
+	strictEqual(attemptCount, 2, 'should retry with default backoff')
+	strictEqual(result, 'success')
 })
 
 test('retry - respects custom backoff intervals', async () => {
@@ -79,19 +79,19 @@ test('retry - respects custom backoff intervals', async () => {
 	// Check approximate delays between attempts
 	if (timestamps.length >= 2) {
 		const delay1 = timestamps[1] - timestamps[0]
-		assert.ok(delay1 >= 40 && delay1 <= 100, `First delay should be ~50ms, got ${delay1}ms`)
+		ok(delay1 >= 40 && delay1 <= 100, `First delay should be ~50ms, got ${delay1}ms`)
 	}
 
 	if (timestamps.length >= 3) {
 		const delay2 = timestamps[2] - timestamps[1]
-		assert.ok(delay2 >= 80 && delay2 <= 150, `Second delay should be ~100ms, got ${delay2}ms`)
+		ok(delay2 >= 80 && delay2 <= 150, `Second delay should be ~100ms, got ${delay2}ms`)
 	}
 })
 
 test('retry - throws error when max retries exceeded', async () => {
 	let attemptCount = 0
 
-	await assert.rejects(
+	await rejects(
 		async () => {
 			await retry(
 				async () => {
@@ -105,7 +105,7 @@ test('retry - throws error when max retries exceeded', async () => {
 		'should throw error after max retries'
 	)
 
-	assert.strictEqual(attemptCount, 3, 'should attempt 3 times (initial + 2 retries)')
+	strictEqual(attemptCount, 3, 'should attempt 3 times (initial + 2 retries)')
 })
 
 test('retry - resetBackoff resets the retry counter', async () => {
@@ -131,8 +131,8 @@ test('retry - resetBackoff resets the retry counter', async () => {
 		{backoffSec: [0.01, 0.02, 0.03, 0.04]}
 	)
 
-	assert.strictEqual(attemptCount, 5, 'should make 5 attempts')
-	assert.deepStrictEqual(backoffs, [1, 2, 3, 4, 5])
+	strictEqual(attemptCount, 5, 'should make 5 attempts')
+	deepStrictEqual(backoffs, [1, 2, 3, 4, 5])
 })
 
 test('retry - with disposer returns undefined on abort', async () => {
@@ -152,8 +152,8 @@ test('retry - with disposer returns undefined on abort', async () => {
 
 	const result = await promise
 
-	assert.strictEqual(result, undefined, 'should return undefined when aborted')
-	assert.ok(attemptCount >= 2, 'should attempt at least twice before abort')
+	strictEqual(result, undefined, 'should return undefined when aborted')
+	ok(attemptCount >= 2, 'should attempt at least twice before abort')
 })
 
 test('retry - without disposer always returns defined value', async () => {
@@ -161,7 +161,7 @@ test('retry - without disposer always returns defined value', async () => {
 		return 'value'
 	})
 
-	assert.strictEqual(result, 'value', 'should return defined value')
+	strictEqual(result, 'value', 'should return defined value')
 })
 
 test('retry - checks abort signal before retry', async () => {
@@ -178,8 +178,8 @@ test('retry - checks abort signal before retry', async () => {
 		{disposer, backoffSec: [0.05, 0.05, 0.05]}
 	)
 
-	assert.strictEqual(result, undefined, 'should return undefined when aborted')
-	assert.ok(attemptCount >= 1, 'should attempt at least once')
+	strictEqual(result, undefined, 'should return undefined when aborted')
+	ok(attemptCount >= 1, 'should attempt at least once')
 })
 
 test('retry - handles synchronous return values', async () => {
@@ -187,7 +187,7 @@ test('retry - handles synchronous return values', async () => {
 		return 'sync value'
 	})
 
-	assert.strictEqual(result, 'sync value', 'should handle synchronous return')
+	strictEqual(result, 'sync value', 'should handle synchronous return')
 })
 
 test('retry - handles synchronous errors', async () => {
@@ -204,8 +204,8 @@ test('retry - handles synchronous errors', async () => {
 		{backoffSec: [0.01]}
 	)
 
-	assert.strictEqual(attemptCount, 2)
-	assert.strictEqual(result, 'recovered')
+	strictEqual(attemptCount, 2)
+	strictEqual(result, 'recovered')
 })
 
 test('retry - infinite retry with -1 backoff', async () => {
@@ -222,8 +222,8 @@ test('retry - infinite retry with -1 backoff', async () => {
 		{backoffSec: [0.01, 0.01, -1]}
 	)
 
-	assert.ok(attemptCount >= 5, 'should retry beyond backoff array with -1')
-	assert.strictEqual(result, 'finally')
+	ok(attemptCount >= 5, 'should retry beyond backoff array with -1')
+	strictEqual(result, 'finally')
 })
 
 test('retry - -1 backoff uses last valid interval', async () => {
@@ -245,7 +245,7 @@ test('retry - -1 backoff uses last valid interval', async () => {
 	// The 3rd retry should use 0.05 (the last non -1 value)
 	if (timestamps.length >= 4) {
 		const delay3 = timestamps[3] - timestamps[2]
-		assert.ok(delay3 >= 40 && delay3 <= 100, `Third delay should use last backoff ~50ms, got ${delay3}ms`)
+		ok(delay3 >= 40 && delay3 <= 100, `Third delay should use last backoff ~50ms, got ${delay3}ms`)
 	}
 })
 
@@ -254,7 +254,7 @@ test('retry - handles complex return types', async () => {
 		return {data: [1, 2, 3], status: 'ok'}
 	})
 
-	assert.deepStrictEqual(result, {data: [1, 2, 3], status: 'ok'})
+	deepStrictEqual(result, {data: [1, 2, 3], status: 'ok'})
 })
 
 test('retry - handles null return value', async () => {
@@ -262,7 +262,7 @@ test('retry - handles null return value', async () => {
 		return null
 	})
 
-	assert.strictEqual(result, null)
+	strictEqual(result, null)
 })
 
 test('retry - handles undefined return value (without disposer)', async () => {
@@ -270,7 +270,7 @@ test('retry - handles undefined return value (without disposer)', async () => {
 		return undefined
 	})
 
-	assert.strictEqual(result, undefined)
+	strictEqual(result, undefined)
 })
 
 test('retry - multiple consecutive errors', async () => {
@@ -290,7 +290,7 @@ test('retry - multiple consecutive errors', async () => {
 		{backoffSec: [0.01, 0.01, 0.01]}
 	)
 
-	assert.deepStrictEqual(errors, ['Error 1', 'Error 2', 'Error 3'])
+	deepStrictEqual(errors, ['Error 1', 'Error 2', 'Error 3'])
 })
 
 test('retry - disposer cleanup is called', async () => {
@@ -309,7 +309,7 @@ test('retry - disposer cleanup is called', async () => {
 	)
 
 	disposer.dispose()
-	assert.strictEqual(cleanupCalled, true, 'disposer cleanup should be called')
+	strictEqual(cleanupCalled, true, 'disposer cleanup should be called')
 })
 
 test('retry - abort during callback execution', async () => {
@@ -333,7 +333,7 @@ test('retry - abort during callback execution', async () => {
 	disposer.dispose()
 
 	const result = await promise
-	assert.strictEqual(callbackStarted, true, 'callback should have started')
+	strictEqual(callbackStarted, true, 'callback should have started')
 })
 
 test('retry - disposer signal aborts retry loop', async () => {
@@ -351,9 +351,9 @@ test('retry - disposer signal aborts retry loop', async () => {
 		{disposer, backoffSec: [0.02, 0.02, 0.02]}
 	)
 
-	assert.strictEqual(result, undefined, 'should return undefined when aborted')
-	assert.ok(callCount >= 1, 'should attempt at least once')
-	assert.ok(callCount <= 3, 'should not attempt many times after disposal')
+	strictEqual(result, undefined, 'should return undefined when aborted')
+	ok(callCount >= 1, 'should attempt at least once')
+	ok(callCount <= 3, 'should not attempt many times after disposal')
 })
 
 test('retry - resetBackoff can be called multiple times', async () => {
@@ -376,7 +376,7 @@ test('retry - resetBackoff can be called multiple times', async () => {
 		{backoffSec: [0.01, 0.01, 0.01]}
 	)
 
-	assert.ok(attemptCount >= 6, 'should handle multiple resetBackoff calls')
+	ok(attemptCount >= 6, 'should handle multiple resetBackoff calls')
 })
 
 test('retry - error is logged to console.warn', async () => {
@@ -392,8 +392,8 @@ test('retry - error is logged to console.warn', async () => {
 			{backoffSec: [0.01, 0.01]}
 		).catch(() => {}) // Ignore the final error
 
-		assert.ok(warnings.length >= 1, 'should log warnings')
-		assert.ok(
+		ok(warnings.length >= 1, 'should log warnings')
+		ok(
 			warnings.some(w => w[0]?.includes?.('Retrying')),
 			'should log retry warning'
 		)
@@ -415,8 +415,8 @@ test('retry - final error is logged to console.error', async () => {
 			{backoffSec: [0.01]}
 		).catch(() => {}) // Ignore the final error
 
-		assert.ok(errors.length >= 1, 'should log error')
-		assert.ok(
+		ok(errors.length >= 1, 'should log error')
+		ok(
 			errors.some(e => e[0]?.includes?.('max retries')),
 			'should log max retries message'
 		)
@@ -428,7 +428,7 @@ test('retry - final error is logged to console.error', async () => {
 test('retry - empty backoffSec array throws immediately', async () => {
 	let attemptCount = 0
 
-	await assert.rejects(
+	await rejects(
 		async () => {
 			await retry(
 				async () => {
@@ -442,7 +442,7 @@ test('retry - empty backoffSec array throws immediately', async () => {
 		'should throw on first error with empty backoff'
 	)
 
-	assert.strictEqual(attemptCount, 1, 'should only attempt once')
+	strictEqual(attemptCount, 1, 'should only attempt once')
 })
 
 test('retry - single backoff value allows two attempts', async () => {
@@ -459,7 +459,7 @@ test('retry - single backoff value allows two attempts', async () => {
 		{backoffSec: [0.01]}
 	)
 
-	assert.strictEqual(attemptCount, 2, 'should allow two attempts with single backoff')
+	strictEqual(attemptCount, 2, 'should allow two attempts with single backoff')
 })
 
 test('retry - zero backoff retries immediately', async () => {
@@ -480,7 +480,7 @@ test('retry - zero backoff retries immediately', async () => {
 
 	if (timestamps.length >= 2) {
 		const delay = timestamps[1] - timestamps[0]
-		assert.ok(delay < 50, `Zero backoff should retry quickly, got ${delay}ms`)
+		ok(delay < 50, `Zero backoff should retry quickly, got ${delay}ms`)
 	}
 })
 
@@ -498,7 +498,7 @@ test('retry - large backoff values work', async () => {
 		{backoffSec: [0.01]} // Using small value for test speed
 	)
 
-	assert.strictEqual(result, 'success')
+	strictEqual(result, 'success')
 })
 
 test('retry - callback can access disposer signal', async () => {
@@ -509,7 +509,7 @@ test('retry - callback can access disposer signal', async () => {
 		return 'done'
 	})
 
-	assert.strictEqual(signalAccessible, true, 'disposer.signal should be accessible')
+	strictEqual(signalAccessible, true, 'disposer.signal should be accessible')
 })
 
 test('retry - disposer is fresh for each retry', async () => {
@@ -528,10 +528,10 @@ test('retry - disposer is fresh for each retry', async () => {
 		{backoffSec: [0.01, 0.01]}
 	)
 
-	assert.strictEqual(signals.length, 3)
+	strictEqual(signals.length, 3)
 	// Each signal should be a different instance (fresh reset)
-	assert.notStrictEqual(signals[0], signals[1])
-	assert.notStrictEqual(signals[1], signals[2])
+	notStrictEqual(signals[0], signals[1])
+	notStrictEqual(signals[1], signals[2])
 })
 
 test('retry - works with promise-returning callback', async () => {
@@ -539,7 +539,7 @@ test('retry - works with promise-returning callback', async () => {
 		return Promise.resolve('promise value')
 	})
 
-	assert.strictEqual(result, 'promise value')
+	strictEqual(result, 'promise value')
 })
 
 test('retry - works with rejected promise', async () => {
@@ -556,8 +556,8 @@ test('retry - works with rejected promise', async () => {
 		{backoffSec: [0.01]}
 	)
 
-	assert.strictEqual(attemptCount, 2)
-	assert.strictEqual(result, 'recovered')
+	strictEqual(attemptCount, 2)
+	strictEqual(result, 'recovered')
 })
 
 test('retry - concurrent retries are independent', async () => {
@@ -584,8 +584,8 @@ test('retry - concurrent retries are independent', async () => {
 
 	const [result1, result2] = await Promise.all([promise1, promise2])
 
-	assert.strictEqual(result1, 'result1')
-	assert.strictEqual(result2, 'result2')
-	assert.strictEqual(count1, 2)
-	assert.strictEqual(count2, 2)
+	strictEqual(result1, 'result1')
+	strictEqual(result2, 'result2')
+	strictEqual(count1, 2)
+	strictEqual(count2, 2)
 })

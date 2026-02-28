@@ -1,18 +1,18 @@
 import {test} from 'node:test'
-import assert from 'node:assert'
+import {ok, strictEqual, doesNotThrow, deepStrictEqual} from 'node:assert'
 import {makeRenderLoop} from '../index.js'
 
 test('makeRenderLoop - basic functionality', () => {
 	const renderLoop = makeRenderLoop()
-	assert.ok(renderLoop, 'renderLoop should be created')
-	assert.ok(typeof renderLoop.loop === 'function', 'renderLoop should have loop method')
-	assert.ok(typeof renderLoop.setLoop === 'function', 'renderLoop should have setLoop method')
+	ok(renderLoop, 'renderLoop should be created')
+	ok(typeof renderLoop.loop === 'function', 'renderLoop should have loop method')
+	ok(typeof renderLoop.setLoop === 'function', 'renderLoop should have setLoop method')
 })
 
 test('makeRenderLoop - setLoop returns a disposer function', () => {
 	const renderLoop = makeRenderLoop()
 	const dispose = renderLoop.setLoop(() => {})
-	assert.ok(typeof dispose === 'function', 'setLoop should return a disposer function')
+	ok(typeof dispose === 'function', 'setLoop should return a disposer function')
 })
 
 test('makeRenderLoop - loop calls the set loop function with time', () => {
@@ -28,8 +28,8 @@ test('makeRenderLoop - loop calls the set loop function with time', () => {
 	const testTime = 1234.5
 	renderLoop.loop(testTime)
 
-	assert.strictEqual(called, true, 'loop function should be called')
-	assert.strictEqual(receivedTime, testTime, 'loop function should receive the time parameter')
+	strictEqual(called, true, 'loop function should be called')
+	strictEqual(receivedTime, testTime, 'loop function should receive the time parameter')
 })
 
 test('makeRenderLoop - loop function can return a cleanup function', () => {
@@ -43,10 +43,10 @@ test('makeRenderLoop - loop function can return a cleanup function', () => {
 	})
 
 	renderLoop.loop(100)
-	assert.strictEqual(cleanupCalled, false, 'cleanup should not be called immediately')
+	strictEqual(cleanupCalled, false, 'cleanup should not be called immediately')
 
 	renderLoop.loop(200)
-	assert.strictEqual(cleanupCalled, true, 'cleanup should be called on next loop')
+	strictEqual(cleanupCalled, true, 'cleanup should be called on next loop')
 })
 
 test('makeRenderLoop - cleanup is called before each loop execution', () => {
@@ -65,8 +65,8 @@ test('makeRenderLoop - cleanup is called before each loop execution', () => {
 	renderLoop.loop(200)
 	renderLoop.loop(300)
 
-	assert.deepStrictEqual(loopCalls, [100, 200, 300], 'loop should be called 3 times')
-	assert.deepStrictEqual(cleanupCalls, [100, 200], 'cleanup should be called for first 2 loops')
+	deepStrictEqual(loopCalls, [100, 200, 300], 'loop should be called 3 times')
+	deepStrictEqual(cleanupCalls, [100, 200], 'cleanup should be called for first 2 loops')
 })
 
 test('makeRenderLoop - disposer cleans up and unsets the loop', () => {
@@ -82,13 +82,13 @@ test('makeRenderLoop - disposer cleans up and unsets the loop', () => {
 	})
 
 	renderLoop.loop(100)
-	assert.strictEqual(loopCallCount, 1, 'loop should be called once')
+	strictEqual(loopCallCount, 1, 'loop should be called once')
 
 	dispose()
-	assert.strictEqual(cleanupCalled, true, 'cleanup should be called when disposed')
+	strictEqual(cleanupCalled, true, 'cleanup should be called when disposed')
 
 	renderLoop.loop(200)
-	assert.strictEqual(loopCallCount, 1, 'loop should not be called after disposal')
+	strictEqual(loopCallCount, 1, 'loop should not be called after disposal')
 })
 
 test('makeRenderLoop - changing loop function switches to new loop', () => {
@@ -106,7 +106,7 @@ test('makeRenderLoop - changing loop function switches to new loop', () => {
 	})
 
 	renderLoop.loop(100)
-	assert.strictEqual(loop1Calls, 1)
+	strictEqual(loop1Calls, 1)
 
 	// Changing loop doesn't call cleanup immediately, but on next loop() call
 	renderLoop.setLoop(() => {
@@ -116,18 +116,18 @@ test('makeRenderLoop - changing loop function switches to new loop', () => {
 		}
 	})
 
-	assert.strictEqual(cleanup1Called, false, 'first loop cleanup not called until next loop()')
+	strictEqual(cleanup1Called, false, 'first loop cleanup not called until next loop()')
 
 	renderLoop.loop(200)
-	assert.strictEqual(cleanup1Called, true, 'first loop cleanup should be called on next loop()')
-	assert.strictEqual(loop1Calls, 1, 'first loop should not be called again')
-	assert.strictEqual(loop2Calls, 1, 'second loop should be called')
+	strictEqual(cleanup1Called, true, 'first loop cleanup should be called on next loop()')
+	strictEqual(loop1Calls, 1, 'first loop should not be called again')
+	strictEqual(loop2Calls, 1, 'second loop should be called')
 })
 
 test('makeRenderLoop - loop without setLoop does nothing', () => {
 	const renderLoop = makeRenderLoop()
 	// Should not throw
-	assert.doesNotThrow(() => {
+	doesNotThrow(() => {
 		renderLoop.loop(100)
 	}, 'calling loop without setLoop should not throw')
 })
@@ -136,7 +136,7 @@ test('makeRenderLoop - multiple consecutive disposals are safe', () => {
 	const renderLoop = makeRenderLoop()
 	const dispose = renderLoop.setLoop(() => {})
 
-	assert.doesNotThrow(() => {
+	doesNotThrow(() => {
 		dispose()
 		dispose()
 		dispose()
@@ -156,7 +156,7 @@ test('makeRenderLoop - loop function returning undefined is handled', () => {
 	renderLoop.loop(100)
 	renderLoop.loop(200)
 
-	assert.strictEqual(callCount, 2, 'loop should be called twice even when returning undefined')
+	strictEqual(callCount, 2, 'loop should be called twice even when returning undefined')
 })
 
 test('makeRenderLoop - loop preserves this context', () => {
@@ -165,21 +165,21 @@ test('makeRenderLoop - loop preserves this context', () => {
 
 	renderLoop.setLoop(function (this: any) {
 		loopCalled = true
-		assert.strictEqual(this, undefined, 'this should be undefined in loop function')
+		strictEqual(this, undefined, 'this should be undefined in loop function')
 	})
 
 	renderLoop.loop(100)
-	assert.strictEqual(loopCalled, true)
+	strictEqual(loopCalled, true)
 })
 
 test('makeRenderLoop - setLoop preserves this context', () => {
 	const renderLoop = makeRenderLoop()
 
 	const dispose = renderLoop.setLoop(function (this: any) {
-		assert.strictEqual(this, undefined, 'this should be undefined in loop function')
+		strictEqual(this, undefined, 'this should be undefined in loop function')
 	})
 
-	assert.ok(typeof dispose === 'function')
+	ok(typeof dispose === 'function')
 })
 
 test('makeRenderLoop - complex scenario with multiple loops and cleanups', () => {
@@ -205,7 +205,7 @@ test('makeRenderLoop - complex scenario with multiple loops and cleanups', () =>
 
 	dispose2()
 
-	assert.deepStrictEqual(
+	deepStrictEqual(
 		events,
 		['loop1', 'cleanup1', 'loop1', 'cleanup1', 'loop2', 'cleanup2'],
 		'events should occur in correct order'

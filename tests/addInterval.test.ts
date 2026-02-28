@@ -1,10 +1,10 @@
 import {test} from 'node:test'
-import assert from 'node:assert'
+import {ok, strictEqual, doesNotThrow, deepStrictEqual} from 'node:assert'
 import {addInterval} from '../index.js'
 
 test('addInterval - returns a disposer function', () => {
 	const dispose = addInterval(() => {}, 100)
-	assert.ok(typeof dispose === 'function', 'addInterval should return a disposer function')
+	ok(typeof dispose === 'function', 'addInterval should return a disposer function')
 	dispose()
 })
 
@@ -14,7 +14,7 @@ test('addInterval - callback is called immediately', () => {
 		called = true
 	}, 100)
 
-	assert.strictEqual(called, true, 'callback should be called immediately')
+	strictEqual(called, true, 'callback should be called immediately')
 	dispose()
 })
 
@@ -28,7 +28,7 @@ test('addInterval - callback is called repeatedly', async () => {
 	dispose()
 
 	// Should be called at least 3 times (immediately, then after 50ms, then after 100ms)
-	assert.ok(calls.length >= 3, `callback should be called at least 3 times, got ${calls.length}`)
+	ok(calls.length >= 3, `callback should be called at least 3 times, got ${calls.length}`)
 })
 
 test('addInterval - callback timing is approximately correct', async () => {
@@ -45,7 +45,7 @@ test('addInterval - callback timing is approximately correct', async () => {
 	for (let i = 1; i < calls.length; i++) {
 		const diff = calls[i] - calls[i - 1]
 		// Allow some tolerance (30ms-70ms range)
-		assert.ok(
+		ok(
 			diff >= interval - 20 && diff <= interval + 20,
 			`interval between calls should be around ${interval}ms, got ${diff}ms`
 		)
@@ -64,7 +64,7 @@ test('addInterval - disposer stops the interval', async () => {
 	const countAfterDispose = callCount
 	await new Promise((resolve) => setTimeout(resolve, 100))
 
-	assert.strictEqual(callCount, countAfterDispose, 'callback should not be called after disposal')
+	strictEqual(callCount, countAfterDispose, 'callback should not be called after disposal')
 })
 
 test('addInterval - callback can return a cleanup function', async () => {
@@ -80,7 +80,7 @@ test('addInterval - callback can return a cleanup function', async () => {
 
 	// Cleanup should be called before each subsequent callback (not for the last one until dispose)
 	// If called 3 times, cleanup should be called 3 times (2 before next callbacks + 1 on dispose)
-	assert.ok(cleanupCount >= 2, `cleanup should be called at least 2 times, got ${cleanupCount}`)
+	ok(cleanupCount >= 2, `cleanup should be called at least 2 times, got ${cleanupCount}`)
 })
 
 test('addInterval - cleanup is called before each callback execution', async () => {
@@ -99,9 +99,9 @@ test('addInterval - cleanup is called before each callback execution', async () 
 	// Pattern should be: callback, cleanup, callback, cleanup, callback, cleanup
 	for (let i = 0; i < events.length; i++) {
 		if (i % 2 === 0) {
-			assert.strictEqual(events[i], 'callback', `event at index ${i} should be callback`)
+			strictEqual(events[i], 'callback', `event at index ${i} should be callback`)
 		} else {
-			assert.strictEqual(events[i], 'cleanup', `event at index ${i} should be cleanup`)
+			strictEqual(events[i], 'cleanup', `event at index ${i} should be cleanup`)
 		}
 	}
 })
@@ -115,13 +115,13 @@ test('addInterval - disposer calls cleanup', () => {
 	}, 100)
 
 	dispose()
-	assert.strictEqual(cleanupCalled, true, 'cleanup should be called when disposed')
+	strictEqual(cleanupCalled, true, 'cleanup should be called when disposed')
 })
 
 test('addInterval - multiple disposals are safe', () => {
 	const dispose = addInterval(() => {}, 100)
 
-	assert.doesNotThrow(() => {
+	doesNotThrow(() => {
 		dispose()
 		dispose()
 		dispose()
@@ -138,7 +138,7 @@ test('addInterval - callback returning undefined is handled', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 120))
 	dispose()
 
-	assert.ok(callCount >= 3, 'callback should be called multiple times even when returning undefined')
+	ok(callCount >= 3, 'callback should be called multiple times even when returning undefined')
 })
 
 test('addInterval - callback can return various values', async () => {
@@ -155,7 +155,7 @@ test('addInterval - callback can return various values', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 120))
 	dispose()
 
-	assert.ok(callCount >= 2, 'callback should be called multiple times')
+	ok(callCount >= 2, 'callback should be called multiple times')
 })
 
 test('addInterval - zero interval works', async () => {
@@ -167,7 +167,7 @@ test('addInterval - zero interval works', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 50))
 	dispose()
 
-	assert.ok(callCount >= 3, 'callback should be called multiple times even with 0 interval')
+	ok(callCount >= 3, 'callback should be called multiple times even with 0 interval')
 })
 
 test('addInterval - large interval works', () => {
@@ -176,7 +176,7 @@ test('addInterval - large interval works', () => {
 		callCount++
 	}, 10000)
 
-	assert.strictEqual(callCount, 1, 'callback should be called once immediately')
+	strictEqual(callCount, 1, 'callback should be called once immediately')
 	dispose()
 })
 
@@ -191,7 +191,7 @@ test('addInterval - callback not throwing error works', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 120))
 	dispose()
 
-	assert.ok(callCount >= 2, 'callback should be called multiple times')
+	ok(callCount >= 2, 'callback should be called multiple times')
 })
 
 test('addInterval - cleanup without errors works', async () => {
@@ -209,8 +209,8 @@ test('addInterval - cleanup without errors works', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 120))
 	dispose()
 
-	assert.ok(callCount >= 2, 'callback should be called multiple times')
-	assert.ok(cleanupCount >= 1, 'cleanup should be called')
+	ok(callCount >= 2, 'callback should be called multiple times')
+	ok(cleanupCount >= 1, 'cleanup should be called')
 })
 
 test('addInterval - dispose during callback execution', async () => {
@@ -235,7 +235,7 @@ test('addInterval - dispose during callback execution', async () => {
 
 	// Should have been called twice (immediately and once after 50ms)
 	// The disposal in the second call should prevent further calls
-	assert.ok(callCount <= 3, 'callback should not be called many times after self-disposal')
+	ok(callCount <= 3, 'callback should not be called many times after self-disposal')
 })
 
 test('addInterval - state is maintained across calls', async () => {
@@ -250,5 +250,5 @@ test('addInterval - state is maintained across calls', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 120))
 	dispose()
 
-	assert.deepStrictEqual(values, [1, 2, 3], 'state should be maintained across calls')
+	deepStrictEqual(values, [1, 2, 3], 'state should be maintained across calls')
 })

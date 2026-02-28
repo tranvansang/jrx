@@ -1,5 +1,5 @@
 import {test} from 'node:test'
-import assert from 'node:assert'
+import {ok, strictEqual, doesNotThrow, deepStrictEqual} from 'node:assert'
 import {addRequestAnimationFrame} from '../index.js'
 
 // Mock requestAnimationFrame and cancelAnimationFrame for Node.js environment
@@ -43,7 +43,7 @@ test('addRequestAnimationFrame - returns a disposer function', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const dispose = addRequestAnimationFrame(() => {})
-		assert.ok(typeof dispose === 'function', 'addRequestAnimationFrame should return a disposer function')
+		ok(typeof dispose === 'function', 'addRequestAnimationFrame should return a disposer function')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -63,8 +63,8 @@ test('addRequestAnimationFrame - callback is called on next frame', () => {
 
 		mocks.tick()
 
-		assert.strictEqual(called, true, 'callback should be called on next frame')
-		assert.ok(typeof receivedTime === 'number', 'callback should receive time parameter')
+		strictEqual(called, true, 'callback should be called on next frame')
+		ok(typeof receivedTime === 'number', 'callback should receive time parameter')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -84,7 +84,7 @@ test('addRequestAnimationFrame - callback is called only once', () => {
 		mocks.tick()
 		mocks.tick()
 
-		assert.strictEqual(calls.length, 1, 'callback should be called only once')
+		strictEqual(calls.length, 1, 'callback should be called only once')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -102,8 +102,8 @@ test('addRequestAnimationFrame - callback receives timestamp', () => {
 
 		mocks.tick(16.67)
 
-		assert.ok(typeof receivedTime === 'number', 'callback should receive timestamp')
-		assert.ok(Math.abs(receivedTime! - 16.67) < 0.01, 'timestamp should be accurate')
+		ok(typeof receivedTime === 'number', 'callback should receive timestamp')
+		ok(Math.abs(receivedTime! - 16.67) < 0.01, 'timestamp should be accurate')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -122,7 +122,7 @@ test('addRequestAnimationFrame - disposer cancels before frame', () => {
 		dispose()
 		mocks.tick()
 
-		assert.strictEqual(callCount, 0, 'callback should not be called if disposed before frame')
+		strictEqual(callCount, 0, 'callback should not be called if disposed before frame')
 	} finally {
 		mocks.cleanup()
 	}
@@ -138,13 +138,13 @@ test('addRequestAnimationFrame - disposer after frame is safe', () => {
 		})
 
 		mocks.tick()
-		assert.strictEqual(callCount, 1, 'callback should be called once')
+		strictEqual(callCount, 1, 'callback should be called once')
 
 		dispose()
 		mocks.tick()
 		mocks.tick()
 
-		assert.strictEqual(callCount, 1, 'callback should still be called only once after disposal')
+		strictEqual(callCount, 1, 'callback should still be called only once after disposal')
 	} finally {
 		mocks.cleanup()
 	}
@@ -162,10 +162,10 @@ test('addRequestAnimationFrame - callback can return a cleanup function', () => 
 		})
 
 		mocks.tick()
-		assert.strictEqual(cleanupCalled, false, 'cleanup should not be called immediately after frame')
+		strictEqual(cleanupCalled, false, 'cleanup should not be called immediately after frame')
 
 		dispose()
-		assert.strictEqual(cleanupCalled, true, 'cleanup should be called on disposal')
+		strictEqual(cleanupCalled, true, 'cleanup should be called on disposal')
 	} finally {
 		mocks.cleanup()
 	}
@@ -185,7 +185,7 @@ test('addRequestAnimationFrame - cleanup is called on disposal', () => {
 		mocks.tick()
 		dispose()
 
-		assert.strictEqual(cleanupCalled, true, 'cleanup should be called when disposed')
+		strictEqual(cleanupCalled, true, 'cleanup should be called when disposed')
 	} finally {
 		mocks.cleanup()
 	}
@@ -198,7 +198,7 @@ test('addRequestAnimationFrame - multiple disposals are safe', () => {
 
 		mocks.tick()
 
-		assert.doesNotThrow(() => {
+		doesNotThrow(() => {
 			dispose()
 			dispose()
 			dispose()
@@ -221,7 +221,7 @@ test('addRequestAnimationFrame - callback returning undefined is handled', () =>
 		mocks.tick()
 		mocks.tick()
 
-		assert.strictEqual(callCount, 1, 'callback should be called only once')
+		strictEqual(callCount, 1, 'callback should be called only once')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -239,7 +239,7 @@ test('addRequestAnimationFrame - callback without cleanup works', () => {
 
 		mocks.tick()
 
-		assert.strictEqual(callCount, 1, 'callback should be called once')
+		strictEqual(callCount, 1, 'callback should be called once')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -262,8 +262,8 @@ test('addRequestAnimationFrame - disposal before frame prevents execution', () =
 		dispose()
 		mocks.tick()
 
-		assert.strictEqual(callCount, 0, 'callback should not be called')
-		assert.strictEqual(cleanupCount, 0, 'cleanup should not be called')
+		strictEqual(callCount, 0, 'callback should not be called')
+		strictEqual(cleanupCount, 0, 'cleanup should not be called')
 	} finally {
 		mocks.cleanup()
 	}
@@ -284,14 +284,14 @@ test('addRequestAnimationFrame - multiple instances work independently', () => {
 		})
 
 		mocks.tick()
-		assert.strictEqual(count1, 1, 'first instance should be called once')
-		assert.strictEqual(count2, 1, 'second instance should be called once')
+		strictEqual(count1, 1, 'first instance should be called once')
+		strictEqual(count2, 1, 'second instance should be called once')
 
 		dispose1()
 		mocks.tick()
 
-		assert.strictEqual(count1, 1, 'first instance should still be called only once')
-		assert.strictEqual(count2, 1, 'second instance should still be called only once')
+		strictEqual(count1, 1, 'first instance should still be called only once')
+		strictEqual(count2, 1, 'second instance should still be called only once')
 
 		dispose2()
 	} finally {
@@ -308,15 +308,15 @@ test('addRequestAnimationFrame - cancellation prevents callback', () => {
 			executed = true
 		})
 
-		assert.strictEqual(mocks.getCallbackCount(), 1, 'one callback should be pending')
+		strictEqual(mocks.getCallbackCount(), 1, 'one callback should be pending')
 
 		dispose()
 
-		assert.strictEqual(mocks.getCallbackCount(), 0, 'callback should be cancelled')
+		strictEqual(mocks.getCallbackCount(), 0, 'callback should be cancelled')
 
 		mocks.tick()
 
-		assert.strictEqual(executed, false, 'callback should not execute after cancellation')
+		strictEqual(executed, false, 'callback should not execute after cancellation')
 	} finally {
 		mocks.cleanup()
 	}
@@ -335,10 +335,10 @@ test('addRequestAnimationFrame - cleanup from callback is called on dispose', ()
 		})
 
 		mocks.tick()
-		assert.deepStrictEqual(events, ['callback'], 'only callback should be called after frame')
+		deepStrictEqual(events, ['callback'], 'only callback should be called after frame')
 
 		dispose()
-		assert.deepStrictEqual(events, ['callback', 'cleanup'], 'cleanup should be called on dispose')
+		deepStrictEqual(events, ['callback', 'cleanup'], 'cleanup should be called on dispose')
 	} finally {
 		mocks.cleanup()
 	}

@@ -1,5 +1,5 @@
 import {test} from 'node:test'
-import assert from 'node:assert'
+import {ok, strictEqual, doesNotThrow, deepStrictEqual} from 'node:assert'
 import {addRequestAnimationFrameLoop} from '../index.js'
 
 // Mock requestAnimationFrame and cancelAnimationFrame for Node.js environment
@@ -43,7 +43,7 @@ test('addRequestAnimationFrameLoop - returns a disposer function', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const dispose = addRequestAnimationFrameLoop(() => {})
-		assert.ok(typeof dispose === 'function', 'addRequestAnimationFrameLoop should return a disposer function')
+		ok(typeof dispose === 'function', 'addRequestAnimationFrameLoop should return a disposer function')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -63,8 +63,8 @@ test('addRequestAnimationFrameLoop - callback is called on first frame', () => {
 
 		mocks.tick()
 
-		assert.strictEqual(called, true, 'callback should be called on first frame')
-		assert.ok(typeof receivedTime === 'number', 'callback should receive time parameter')
+		strictEqual(called, true, 'callback should be called on first frame')
+		ok(typeof receivedTime === 'number', 'callback should receive time parameter')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -84,7 +84,7 @@ test('addRequestAnimationFrameLoop - callback is called repeatedly', () => {
 		mocks.tick()
 		mocks.tick()
 
-		assert.strictEqual(calls.length, 3, 'callback should be called 3 times')
+		strictEqual(calls.length, 3, 'callback should be called 3 times')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -104,9 +104,9 @@ test('addRequestAnimationFrameLoop - callback receives increasing timestamps', (
 		mocks.tick(17)
 		mocks.tick(15)
 
-		assert.strictEqual(times.length, 3)
-		assert.ok(times[1] > times[0], 'second timestamp should be greater than first')
-		assert.ok(times[2] > times[1], 'third timestamp should be greater than second')
+		strictEqual(times.length, 3)
+		ok(times[1] > times[0], 'second timestamp should be greater than first')
+		ok(times[2] > times[1], 'third timestamp should be greater than second')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -130,7 +130,7 @@ test('addRequestAnimationFrameLoop - disposer stops the animation frame', () => 
 		mocks.tick()
 		mocks.tick()
 
-		assert.strictEqual(
+		strictEqual(
 			callCount,
 			countAfterDispose,
 			'callback should not be called after disposal'
@@ -152,16 +152,16 @@ test('addRequestAnimationFrameLoop - callback can return a cleanup function', ()
 		})
 
 		mocks.tick()
-		assert.strictEqual(cleanupCount, 0, 'cleanup should not be called after first frame')
+		strictEqual(cleanupCount, 0, 'cleanup should not be called after first frame')
 
 		mocks.tick()
-		assert.strictEqual(cleanupCount, 1, 'cleanup should be called before second frame')
+		strictEqual(cleanupCount, 1, 'cleanup should be called before second frame')
 
 		mocks.tick()
-		assert.strictEqual(cleanupCount, 2, 'cleanup should be called before third frame')
+		strictEqual(cleanupCount, 2, 'cleanup should be called before third frame')
 
 		dispose()
-		assert.strictEqual(cleanupCount, 3, 'cleanup should be called on disposal')
+		strictEqual(cleanupCount, 3, 'cleanup should be called on disposal')
 	} finally {
 		mocks.cleanup()
 	}
@@ -185,7 +185,7 @@ test('addRequestAnimationFrameLoop - cleanup is called before each callback exec
 		dispose()
 
 		// Pattern should be: callback, cleanup, callback, cleanup, callback, cleanup
-		assert.deepStrictEqual(
+		deepStrictEqual(
 			events,
 			['callback', 'cleanup', 'callback', 'cleanup', 'callback', 'cleanup'],
 			'cleanup should be called before each callback except the first'
@@ -209,7 +209,7 @@ test('addRequestAnimationFrameLoop - disposer calls cleanup', () => {
 		mocks.tick()
 		dispose()
 
-		assert.strictEqual(cleanupCalled, true, 'cleanup should be called when disposed')
+		strictEqual(cleanupCalled, true, 'cleanup should be called when disposed')
 	} finally {
 		mocks.cleanup()
 	}
@@ -222,7 +222,7 @@ test('addRequestAnimationFrameLoop - multiple disposals are safe', () => {
 
 		mocks.tick()
 
-		assert.doesNotThrow(() => {
+		doesNotThrow(() => {
 			dispose()
 			dispose()
 			dispose()
@@ -246,7 +246,7 @@ test('addRequestAnimationFrameLoop - callback returning undefined is handled', (
 		mocks.tick()
 		mocks.tick()
 
-		assert.strictEqual(callCount, 3, 'callback should be called multiple times')
+		strictEqual(callCount, 3, 'callback should be called multiple times')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -267,7 +267,7 @@ test('addRequestAnimationFrameLoop - callback without errors works', () => {
 		mocks.tick()
 		mocks.tick()
 
-		assert.strictEqual(callCount, 3, 'should be called multiple times')
+		strictEqual(callCount, 3, 'should be called multiple times')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -292,8 +292,8 @@ test('addRequestAnimationFrameLoop - cleanup without errors works', () => {
 		mocks.tick()
 		mocks.tick()
 
-		assert.strictEqual(callCount, 3, 'should be called multiple times')
-		assert.ok(cleanupCount >= 2, 'cleanup should be called')
+		strictEqual(callCount, 3, 'should be called multiple times')
+		ok(cleanupCount >= 2, 'cleanup should be called')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -328,7 +328,7 @@ test('addRequestAnimationFrameLoop - dispose during callback execution', () => {
 			// Might already be disposed
 		}
 
-		assert.ok(callCount <= 3, 'callback should not be called many times after self-disposal')
+		ok(callCount <= 3, 'callback should not be called many times after self-disposal')
 	} finally {
 		mocks.cleanup()
 	}
@@ -349,7 +349,7 @@ test('addRequestAnimationFrameLoop - state is maintained across frames', () => {
 		mocks.tick()
 		mocks.tick()
 
-		assert.deepStrictEqual(values, [1, 2, 3], 'state should be maintained across frames')
+		deepStrictEqual(values, [1, 2, 3], 'state should be maintained across frames')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -366,7 +366,7 @@ test('addRequestAnimationFrameLoop - cancellation is called with correct id', ()
 		dispose()
 		const callbackCountAfter = mocks.getCallbackCount()
 
-		assert.strictEqual(callbackCountAfter, 0, 'all animation frame callbacks should be cancelled')
+		strictEqual(callbackCountAfter, 0, 'all animation frame callbacks should be cancelled')
 	} finally {
 		mocks.cleanup()
 	}
@@ -387,14 +387,14 @@ test('addRequestAnimationFrameLoop - multiple instances work independently', () 
 		})
 
 		mocks.tick()
-		assert.strictEqual(count1, 1)
-		assert.strictEqual(count2, 1)
+		strictEqual(count1, 1)
+		strictEqual(count2, 1)
 
 		dispose1()
 		mocks.tick()
 
-		assert.strictEqual(count1, 1, 'first instance should not be called after disposal')
-		assert.strictEqual(count2, 2, 'second instance should continue')
+		strictEqual(count1, 1, 'first instance should not be called after disposal')
+		strictEqual(count2, 2, 'second instance should continue')
 
 		dispose2()
 	} finally {
@@ -415,11 +415,11 @@ test('addRequestAnimationFrameLoop - callback receives accurate timing', () => {
 		mocks.tick(16.67)
 		mocks.tick(16.67)
 
-		assert.strictEqual(times.length, 3)
+		strictEqual(times.length, 3)
 		// Check approximate 60fps timing (16.67ms per frame)
-		assert.ok(Math.abs(times[0] - 16.67) < 0.01, 'first timestamp should be ~16.67')
-		assert.ok(Math.abs(times[1] - 33.34) < 0.01, 'second timestamp should be ~33.34')
-		assert.ok(Math.abs(times[2] - 50.01) < 0.01, 'third timestamp should be ~50.01')
+		ok(Math.abs(times[0] - 16.67) < 0.01, 'first timestamp should be ~16.67')
+		ok(Math.abs(times[1] - 33.34) < 0.01, 'second timestamp should be ~33.34')
+		ok(Math.abs(times[2] - 50.01) < 0.01, 'third timestamp should be ~50.01')
 
 		dispose()
 	} finally {

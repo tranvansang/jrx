@@ -1,10 +1,10 @@
 import {test} from 'node:test'
-import assert from 'node:assert'
+import {ok, strictEqual, doesNotThrow, deepStrictEqual} from 'node:assert'
 import {addTimeout} from '../index.js'
 
 test('addTimeout - returns a disposer function', () => {
 	const dispose = addTimeout(() => {}, 100)
-	assert.ok(typeof dispose === 'function', 'addTimeout should return a disposer function')
+	ok(typeof dispose === 'function', 'addTimeout should return a disposer function')
 	dispose()
 })
 
@@ -16,14 +16,14 @@ test('addTimeout - callback is called after the specified delay', async () => {
 		called = true
 	}, 50)
 
-	assert.strictEqual(called, false, 'callback should not be called immediately')
+	strictEqual(called, false, 'callback should not be called immediately')
 
 	await new Promise((resolve) => setTimeout(resolve, 60))
 
-	assert.strictEqual(called, true, 'callback should be called after delay')
+	strictEqual(called, true, 'callback should be called after delay')
 
 	const elapsed = Date.now() - startTime
-	assert.ok(elapsed >= 50, `elapsed time should be at least 50ms, got ${elapsed}ms`)
+	ok(elapsed >= 50, `elapsed time should be at least 50ms, got ${elapsed}ms`)
 
 	dispose()
 })
@@ -39,11 +39,11 @@ test('addTimeout - callback timing is approximately correct', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, delay + 20))
 
-	assert.ok(callTime !== undefined, 'callback should have been called')
+	ok(callTime !== undefined, 'callback should have been called')
 
 	const elapsed = callTime! - startTime
 	// Allow some tolerance (±30ms)
-	assert.ok(
+	ok(
 		elapsed >= delay - 30 && elapsed <= delay + 30,
 		`elapsed time should be around ${delay}ms, got ${elapsed}ms`
 	)
@@ -62,7 +62,7 @@ test('addTimeout - disposer cancels the timeout', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 70))
 
-	assert.strictEqual(called, false, 'callback should not be called after disposal')
+	strictEqual(called, false, 'callback should not be called after disposal')
 })
 
 test('addTimeout - disposer can be called before timeout fires', async () => {
@@ -77,13 +77,13 @@ test('addTimeout - disposer can be called before timeout fires', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 100))
 
-	assert.strictEqual(called, false, 'callback should not be called after early disposal')
+	strictEqual(called, false, 'callback should not be called after early disposal')
 })
 
 test('addTimeout - multiple disposals are safe', async () => {
 	const dispose = addTimeout(() => {}, 100)
 
-	assert.doesNotThrow(() => {
+	doesNotThrow(() => {
 		dispose()
 		dispose()
 		dispose()
@@ -101,9 +101,9 @@ test('addTimeout - disposer after timeout has fired is safe', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 70))
 
-	assert.strictEqual(called, true, 'callback should be called')
+	strictEqual(called, true, 'callback should be called')
 
-	assert.doesNotThrow(() => {
+	doesNotThrow(() => {
 		dispose()
 	}, 'disposal after timeout fired should be safe')
 })
@@ -115,11 +115,11 @@ test('addTimeout - zero delay works', async () => {
 		called = true
 	}, 0)
 
-	assert.strictEqual(called, false, 'callback should not be called synchronously')
+	strictEqual(called, false, 'callback should not be called synchronously')
 
 	await new Promise((resolve) => setTimeout(resolve, 10))
 
-	assert.strictEqual(called, true, 'callback should be called with zero delay')
+	strictEqual(called, true, 'callback should be called with zero delay')
 	dispose()
 })
 
@@ -132,7 +132,7 @@ test('addTimeout - large delay works', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 50))
 
-	assert.strictEqual(called, false, 'callback should not be called before delay')
+	strictEqual(called, false, 'callback should not be called before delay')
 	dispose()
 })
 
@@ -146,7 +146,7 @@ test('addTimeout - callback is called only once', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 70))
 	await new Promise((resolve) => setTimeout(resolve, 70))
 
-	assert.strictEqual(callCount, 1, 'callback should be called exactly once')
+	strictEqual(callCount, 1, 'callback should be called exactly once')
 	dispose()
 })
 
@@ -160,7 +160,7 @@ test('addTimeout - callback with no return value works', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 70))
 
-	assert.strictEqual(called, true, 'callback should be called')
+	strictEqual(called, true, 'callback should be called')
 	dispose()
 })
 
@@ -174,7 +174,7 @@ test('addTimeout - callback returning a value works', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 70))
 
-	assert.strictEqual(called, true, 'callback should be called')
+	strictEqual(called, true, 'callback should be called')
 	dispose()
 })
 
@@ -188,7 +188,7 @@ test('addTimeout - callback without errors works', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 70))
 
-	assert.strictEqual(called, true, 'callback should have been called')
+	strictEqual(called, true, 'callback should have been called')
 	dispose()
 })
 
@@ -210,16 +210,16 @@ test('addTimeout - multiple independent timeouts work correctly', async () => {
 	}, 90)
 
 	await new Promise((resolve) => setTimeout(resolve, 45))
-	assert.strictEqual(count1, 1, 'first timeout should have fired')
-	assert.strictEqual(count2, 0, 'second timeout should not have fired yet')
-	assert.strictEqual(count3, 0, 'third timeout should not have fired yet')
+	strictEqual(count1, 1, 'first timeout should have fired')
+	strictEqual(count2, 0, 'second timeout should not have fired yet')
+	strictEqual(count3, 0, 'third timeout should not have fired yet')
 
 	await new Promise((resolve) => setTimeout(resolve, 35))
-	assert.strictEqual(count2, 1, 'second timeout should have fired')
-	assert.strictEqual(count3, 0, 'third timeout should not have fired yet')
+	strictEqual(count2, 1, 'second timeout should have fired')
+	strictEqual(count3, 0, 'third timeout should not have fired yet')
 
 	await new Promise((resolve) => setTimeout(resolve, 35))
-	assert.strictEqual(count3, 1, 'third timeout should have fired')
+	strictEqual(count3, 1, 'third timeout should have fired')
 
 	dispose1()
 	dispose2()
@@ -242,8 +242,8 @@ test('addTimeout - canceling one timeout does not affect others', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 70))
 
-	assert.strictEqual(count1, 0, 'first timeout should not have fired')
-	assert.strictEqual(count2, 1, 'second timeout should have fired')
+	strictEqual(count1, 0, 'first timeout should not have fired')
+	strictEqual(count2, 1, 'second timeout should have fired')
 
 	dispose2()
 })
@@ -259,7 +259,7 @@ test('addTimeout - callback captures closure correctly', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 70))
 
-	assert.deepStrictEqual(results, [0, 1, 2], 'closures should be captured correctly')
+	deepStrictEqual(results, [0, 1, 2], 'closures should be captured correctly')
 })
 
 test('addTimeout - state from outer scope is accessible', async () => {
@@ -274,7 +274,7 @@ test('addTimeout - state from outer scope is accessible', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 70))
 
-	assert.strictEqual(capturedState, 'modified', 'callback should access modified external state')
+	strictEqual(capturedState, 'modified', 'callback should access modified external state')
 	dispose()
 })
 
@@ -287,7 +287,7 @@ test('addTimeout - very short delays work correctly', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 20))
 
-	assert.deepStrictEqual(calls, [1, 2, 3], 'timeouts with very short delays should fire in order')
+	deepStrictEqual(calls, [1, 2, 3], 'timeouts with very short delays should fire in order')
 })
 
 test('addTimeout - disposal immediately after creation works', () => {
@@ -299,7 +299,7 @@ test('addTimeout - disposal immediately after creation works', () => {
 
 	dispose()
 
-	assert.doesNotThrow(() => dispose(), 'immediate disposal should work')
+	doesNotThrow(() => dispose(), 'immediate disposal should work')
 })
 
 test('addTimeout - callback receives no parameters', async () => {
@@ -311,8 +311,8 @@ test('addTimeout - callback receives no parameters', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 70))
 
-	assert.ok(receivedArgs !== undefined, 'callback should have been called')
-	assert.strictEqual(receivedArgs!.length, 0, 'callback should receive no arguments')
+	ok(receivedArgs !== undefined, 'callback should have been called')
+	strictEqual(receivedArgs!.length, 0, 'callback should receive no arguments')
 	dispose()
 })
 
@@ -326,6 +326,6 @@ test('addTimeout - works with async callback', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 80))
 
-	assert.strictEqual(called, true, 'async callback should be called')
+	strictEqual(called, true, 'async callback should be called')
 	dispose()
 })

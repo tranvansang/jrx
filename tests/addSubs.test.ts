@@ -1,5 +1,5 @@
 import {test} from 'node:test'
-import assert from 'node:assert'
+import {ok, strictEqual, doesNotThrow, deepStrictEqual} from 'node:assert'
 import {addSubs} from '../index.js'
 
 // Helper to create a mock subscription
@@ -21,7 +21,7 @@ function createMockSub() {
 
 test('addSubs - returns a disposer function', () => {
 	const dispose = addSubs([], () => {})
-	assert.ok(typeof dispose === 'function', 'addSubs should return a disposer function')
+	ok(typeof dispose === 'function', 'addSubs should return a disposer function')
 	dispose()
 })
 
@@ -34,7 +34,7 @@ test('addSubs - callback is called when subscription triggers', () => {
 	})
 
 	mock.trigger()
-	assert.strictEqual(called, true, 'callback should be called when subscription triggers')
+	strictEqual(called, true, 'callback should be called when subscription triggers')
 	dispose()
 })
 
@@ -51,7 +51,7 @@ test('addSubs - callback is called for multiple subscriptions', () => {
 	mock2.trigger()
 	mock1.trigger()
 
-	assert.strictEqual(calls.length, 3, 'callback should be called 3 times')
+	strictEqual(calls.length, 3, 'callback should be called 3 times')
 	dispose()
 })
 
@@ -63,7 +63,7 @@ test('addSubs - callback with now:true is called immediately', () => {
 		callCount++
 	}, {now: true})
 
-	assert.strictEqual(callCount, 1, 'callback should be called immediately with now:true')
+	strictEqual(callCount, 1, 'callback should be called immediately with now:true')
 	dispose()
 })
 
@@ -75,7 +75,7 @@ test('addSubs - callback with now:false is not called immediately', () => {
 		callCount++
 	}, {now: false})
 
-	assert.strictEqual(callCount, 0, 'callback should not be called immediately with now:false')
+	strictEqual(callCount, 0, 'callback should not be called immediately with now:false')
 	dispose()
 })
 
@@ -87,7 +87,7 @@ test('addSubs - callback without now option is not called immediately', () => {
 		callCount++
 	})
 
-	assert.strictEqual(callCount, 0, 'callback should not be called immediately without now option')
+	strictEqual(callCount, 0, 'callback should not be called immediately without now option')
 	dispose()
 })
 
@@ -102,13 +102,13 @@ test('addSubs - callback can return a cleanup function', () => {
 	})
 
 	mock.trigger()
-	assert.strictEqual(cleanupCount, 0, 'cleanup should not be called after first trigger')
+	strictEqual(cleanupCount, 0, 'cleanup should not be called after first trigger')
 
 	mock.trigger()
-	assert.strictEqual(cleanupCount, 1, 'cleanup should be called before second trigger')
+	strictEqual(cleanupCount, 1, 'cleanup should be called before second trigger')
 
 	dispose()
-	assert.strictEqual(cleanupCount, 2, 'cleanup should be called on disposal')
+	strictEqual(cleanupCount, 2, 'cleanup should be called on disposal')
 })
 
 test('addSubs - cleanup is called before each callback execution', () => {
@@ -127,7 +127,7 @@ test('addSubs - cleanup is called before each callback execution', () => {
 	mock.trigger()
 	dispose()
 
-	assert.deepStrictEqual(
+	deepStrictEqual(
 		events,
 		['callback', 'cleanup', 'callback', 'cleanup', 'callback', 'cleanup'],
 		'cleanup should be called before each callback except the first'
@@ -143,25 +143,25 @@ test('addSubs - disposer unsubscribes from all subscriptions', () => {
 		callCount++
 	})
 
-	assert.ok(mock1.isActive(), 'first subscription should be active')
-	assert.ok(mock2.isActive(), 'second subscription should be active')
+	ok(mock1.isActive(), 'first subscription should be active')
+	ok(mock2.isActive(), 'second subscription should be active')
 
 	dispose()
 
-	assert.strictEqual(mock1.isActive(), false, 'first subscription should be inactive after disposal')
-	assert.strictEqual(mock2.isActive(), false, 'second subscription should be inactive after disposal')
+	strictEqual(mock1.isActive(), false, 'first subscription should be inactive after disposal')
+	strictEqual(mock2.isActive(), false, 'second subscription should be inactive after disposal')
 
 	mock1.trigger()
 	mock2.trigger()
 
-	assert.strictEqual(callCount, 0, 'callback should not be called after disposal')
+	strictEqual(callCount, 0, 'callback should not be called after disposal')
 })
 
 test('addSubs - multiple disposals are safe', () => {
 	const mock = createMockSub()
 	const dispose = addSubs([mock.sub], () => {})
 
-	assert.doesNotThrow(() => {
+	doesNotThrow(() => {
 		dispose()
 		dispose()
 		dispose()
@@ -175,7 +175,7 @@ test('addSubs - empty subscriptions array works', () => {
 		callCount++
 	})
 
-	assert.strictEqual(callCount, 0, 'callback should not be called with empty subscriptions')
+	strictEqual(callCount, 0, 'callback should not be called with empty subscriptions')
 	dispose()
 })
 
@@ -186,7 +186,7 @@ test('addSubs - empty subscriptions array with now:true calls callback', () => {
 		callCount++
 	}, {now: true})
 
-	assert.strictEqual(callCount, 1, 'callback should be called once with now:true even with empty subscriptions')
+	strictEqual(callCount, 1, 'callback should be called once with now:true even with empty subscriptions')
 	dispose()
 })
 
@@ -202,7 +202,7 @@ test('addSubs - callback returning undefined is handled', () => {
 	mock.trigger()
 	mock.trigger()
 
-	assert.strictEqual(callCount, 2, 'callback should be called multiple times')
+	strictEqual(callCount, 2, 'callback should be called multiple times')
 	dispose()
 })
 
@@ -222,7 +222,7 @@ test('addSubs - callback returning various values works', () => {
 	mock.trigger()
 	mock.trigger()
 
-	assert.strictEqual(callCount, 2, 'callback should be called multiple times')
+	strictEqual(callCount, 2, 'callback should be called multiple times')
 	dispose()
 })
 
@@ -239,7 +239,7 @@ test('addSubs - callback without errors works', () => {
 	mock.trigger()
 	mock.trigger()
 
-	assert.strictEqual(callCount, 3, 'callback should be called multiple times')
+	strictEqual(callCount, 3, 'callback should be called multiple times')
 	dispose()
 })
 
@@ -260,8 +260,8 @@ test('addSubs - cleanup without errors works', () => {
 	mock.trigger()
 	mock.trigger()
 
-	assert.strictEqual(callCount, 3, 'callback should be called multiple times')
-	assert.ok(cleanupCount >= 2, 'cleanup should be called')
+	strictEqual(callCount, 3, 'callback should be called multiple times')
+	ok(cleanupCount >= 2, 'cleanup should be called')
 	dispose()
 })
 
@@ -275,13 +275,13 @@ test('addSubs - now:true with cleanup function', () => {
 		}
 	}, {now: true})
 
-	assert.strictEqual(cleanupCount, 0, 'cleanup should not be called immediately')
+	strictEqual(cleanupCount, 0, 'cleanup should not be called immediately')
 
 	mock.trigger()
-	assert.strictEqual(cleanupCount, 1, 'cleanup should be called before first trigger')
+	strictEqual(cleanupCount, 1, 'cleanup should be called before first trigger')
 
 	dispose()
-	assert.strictEqual(cleanupCount, 2, 'cleanup should be called on disposal')
+	strictEqual(cleanupCount, 2, 'cleanup should be called on disposal')
 })
 
 test('addSubs - state is maintained across subscription triggers', () => {
@@ -298,7 +298,7 @@ test('addSubs - state is maintained across subscription triggers', () => {
 	mock.trigger()
 	mock.trigger()
 
-	assert.deepStrictEqual(values, [1, 2, 3], 'state should be maintained across triggers')
+	deepStrictEqual(values, [1, 2, 3], 'state should be maintained across triggers')
 	dispose()
 })
 
@@ -317,7 +317,7 @@ test('addSubs - multiple subscriptions trigger independently', () => {
 	mock2.trigger()
 	mock1.trigger()
 
-	assert.strictEqual(triggers.length, 4, 'callback should be called for each trigger')
+	strictEqual(triggers.length, 4, 'callback should be called for each trigger')
 	dispose()
 })
 
@@ -341,8 +341,8 @@ test('addSubs - subscription disposers are called on disposal', () => {
 
 	dispose()
 
-	assert.strictEqual(disposer1Called, true, 'first subscription disposer should be called')
-	assert.strictEqual(disposer2Called, true, 'second subscription disposer should be called')
+	strictEqual(disposer1Called, true, 'first subscription disposer should be called')
+	strictEqual(disposer2Called, true, 'second subscription disposer should be called')
 })
 
 test('addSubs - complex scenario with multiple subs and cleanups', () => {
@@ -361,7 +361,7 @@ test('addSubs - complex scenario with multiple subs and cleanups', () => {
 	mock2.trigger()
 	dispose()
 
-	assert.deepStrictEqual(
+	deepStrictEqual(
 		events,
 		['callback', 'cleanup', 'callback', 'cleanup', 'callback', 'cleanup'],
 		'events should occur in correct order'
@@ -384,7 +384,7 @@ test('addSubs - dispose during callback execution', () => {
 	mock.trigger()
 	mock.trigger()
 
-	assert.ok(callCount <= 2, 'callback should not be called after self-disposal')
+	ok(callCount <= 2, 'callback should not be called after self-disposal')
 })
 
 test('addSubs - single subscription works correctly', () => {
@@ -398,9 +398,9 @@ test('addSubs - single subscription works correctly', () => {
 	mock.trigger()
 	mock.trigger()
 
-	assert.strictEqual(callCount, 2, 'callback should be called twice')
+	strictEqual(callCount, 2, 'callback should be called twice')
 	dispose()
-	assert.strictEqual(mock.isActive(), false, 'subscription should be inactive after disposal')
+	strictEqual(mock.isActive(), false, 'subscription should be inactive after disposal')
 })
 
 test('addSubs - many subscriptions work correctly', () => {
@@ -416,10 +416,10 @@ test('addSubs - many subscriptions work correctly', () => {
 
 	mocks.forEach((m) => m.trigger())
 
-	assert.strictEqual(triggers.length, 10, 'callback should be called for each subscription')
+	strictEqual(triggers.length, 10, 'callback should be called for each subscription')
 	dispose()
 
 	mocks.forEach((m, i) => {
-		assert.strictEqual(m.isActive(), false, `subscription ${i} should be inactive after disposal`)
+		strictEqual(m.isActive(), false, `subscription ${i} should be inactive after disposal`)
 	})
 })

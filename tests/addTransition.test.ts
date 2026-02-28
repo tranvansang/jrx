@@ -1,5 +1,5 @@
 import {test} from 'node:test'
-import assert from 'node:assert'
+import {ok, strictEqual, doesNotThrow, deepStrictEqual} from 'node:assert'
 import {addTransition} from '../index.js'
 
 // Mock requestAnimationFrame and cancelAnimationFrame for Node.js environment
@@ -43,7 +43,7 @@ test('addTransition - returns a disposer function', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const dispose = addTransition(() => {}, 1000)
-		assert.ok(typeof dispose === 'function', 'addTransition should return a disposer function')
+		ok(typeof dispose === 'function', 'addTransition should return a disposer function')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -61,7 +61,7 @@ test('addTransition - callback is called with progress 0 on first frame', () => 
 
 		mocks.tick()
 
-		assert.strictEqual(receivedProgress, 0, 'callback should be called with progress 0 on first frame')
+		strictEqual(receivedProgress, 0, 'callback should be called with progress 0 on first frame')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -83,12 +83,12 @@ test('addTransition - callback is called with increasing progress values', () =>
 		mocks.tick(25) // 75% through
 		mocks.tick(25) // 100% through
 
-		assert.ok(progressValues.length >= 3, 'callback should be called multiple times')
-		assert.strictEqual(progressValues[0], 0, 'first progress should be 0')
+		ok(progressValues.length >= 3, 'callback should be called multiple times')
+		strictEqual(progressValues[0], 0, 'first progress should be 0')
 
 		// Check that progress values are increasing
 		for (let i = 1; i < progressValues.length; i++) {
-			assert.ok(
+			ok(
 				progressValues[i] >= progressValues[i - 1],
 				`progress should increase: ${progressValues[i - 1]} -> ${progressValues[i]}`
 			)
@@ -113,8 +113,8 @@ test('addTransition - callback is called with progress 1 when duration is reache
 		mocks.tick(50) // Half way
 		mocks.tick(60) // Past duration (110 total)
 
-		assert.ok(progressValues.includes(1), 'progress should include 1')
-		assert.strictEqual(progressValues[progressValues.length - 1], 1, 'last progress should be 1')
+		ok(progressValues.includes(1), 'progress should include 1')
+		strictEqual(progressValues[progressValues.length - 1], 1, 'last progress should be 1')
 
 		dispose()
 	} finally {
@@ -137,11 +137,11 @@ test('addTransition - transition stops after reaching progress 1', () => {
 		mocks.tick(50) // After duration
 
 		const lastProgress = progressValues[progressValues.length - 1]
-		assert.strictEqual(lastProgress, 1, 'last progress should be 1')
+		strictEqual(lastProgress, 1, 'last progress should be 1')
 
 		// Count how many times we got progress 1
 		const onesCount = progressValues.filter((p) => p === 1).length
-		assert.strictEqual(onesCount, 1, 'progress 1 should appear exactly once')
+		strictEqual(onesCount, 1, 'progress 1 should appear exactly once')
 
 		dispose()
 	} finally {
@@ -165,11 +165,11 @@ test('addTransition - progress calculation is accurate', () => {
 		mocks.tick(50) // 150ms - progress should be 0.75
 		mocks.tick(50) // 200ms - progress should be 1
 
-		assert.strictEqual(progressValues[0], 0, 'progress at 0ms should be 0')
-		assert.ok(Math.abs(progressValues[1] - 0.25) < 0.01, `progress at 50ms should be ~0.25, got ${progressValues[1]}`)
-		assert.ok(Math.abs(progressValues[2] - 0.5) < 0.01, `progress at 100ms should be ~0.5, got ${progressValues[2]}`)
-		assert.ok(Math.abs(progressValues[3] - 0.75) < 0.01, `progress at 150ms should be ~0.75, got ${progressValues[3]}`)
-		assert.strictEqual(progressValues[4], 1, 'progress at 200ms should be 1')
+		strictEqual(progressValues[0], 0, 'progress at 0ms should be 0')
+		ok(Math.abs(progressValues[1] - 0.25) < 0.01, `progress at 50ms should be ~0.25, got ${progressValues[1]}`)
+		ok(Math.abs(progressValues[2] - 0.5) < 0.01, `progress at 100ms should be ~0.5, got ${progressValues[2]}`)
+		ok(Math.abs(progressValues[3] - 0.75) < 0.01, `progress at 150ms should be ~0.75, got ${progressValues[3]}`)
+		strictEqual(progressValues[4], 1, 'progress at 200ms should be 1')
 
 		dispose()
 	} finally {
@@ -194,7 +194,7 @@ test('addTransition - disposer stops the transition', () => {
 		mocks.tick(50)
 		mocks.tick(50)
 
-		assert.strictEqual(callCount, countAfterDispose, 'callback should not be called after disposal')
+		strictEqual(callCount, countAfterDispose, 'callback should not be called after disposal')
 	} finally {
 		mocks.cleanup()
 	}
@@ -212,13 +212,13 @@ test('addTransition - callback can return a cleanup function', () => {
 		}, 100)
 
 		mocks.tick(0) // First frame: start = 0, progress = 0
-		assert.strictEqual(cleanupCount, 0, 'cleanup should not be called after first frame')
+		strictEqual(cleanupCount, 0, 'cleanup should not be called after first frame')
 
 		mocks.tick(50) // Second frame: progress = 0.5
-		assert.strictEqual(cleanupCount, 1, 'cleanup should be called before second frame')
+		strictEqual(cleanupCount, 1, 'cleanup should be called before second frame')
 
 		mocks.tick(50) // Third frame: progress = 1.0 (completes)
-		assert.strictEqual(cleanupCount, 2, 'cleanup should be called before third frame')
+		strictEqual(cleanupCount, 2, 'cleanup should be called before third frame')
 
 		dispose()
 		// Transition is complete, so no additional cleanup on disposal
@@ -244,7 +244,7 @@ test('addTransition - cleanup is called before each callback execution', () => {
 		mocks.tick(60)
 
 		// Pattern: callback, cleanup, callback, cleanup, callback
-		assert.deepStrictEqual(
+		deepStrictEqual(
 			events,
 			['callback', 'cleanup', 'callback', 'cleanup', 'callback'],
 			'cleanup should be called before each callback except the first'
@@ -270,7 +270,7 @@ test('addTransition - disposer calls cleanup', () => {
 		mocks.tick(0)
 		dispose()
 
-		assert.strictEqual(cleanupCalled, true, 'cleanup should be called when disposed')
+		strictEqual(cleanupCalled, true, 'cleanup should be called when disposed')
 	} finally {
 		mocks.cleanup()
 	}
@@ -283,7 +283,7 @@ test('addTransition - multiple disposals are safe', () => {
 
 		mocks.tick(0)
 
-		assert.doesNotThrow(() => {
+		doesNotThrow(() => {
 			dispose()
 			dispose()
 			dispose()
@@ -307,7 +307,7 @@ test('addTransition - callback returning undefined is handled', () => {
 		mocks.tick(50)
 		mocks.tick(60)
 
-		assert.ok(callCount >= 3, 'callback should be called multiple times')
+		ok(callCount >= 3, 'callback should be called multiple times')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -326,9 +326,9 @@ test('addTransition - zero duration works', () => {
 		mocks.tick(0) // First frame: start = 0, progress = 0
 		mocks.tick(1) // Second frame: progress = 1
 
-		assert.ok(progressValues.includes(0), 'should have progress 0')
-		assert.ok(progressValues.includes(1), 'should have progress 1')
-		assert.ok(progressValues.length >= 2, 'should be called at least twice')
+		ok(progressValues.includes(0), 'should have progress 0')
+		ok(progressValues.includes(1), 'should have progress 1')
+		ok(progressValues.length >= 2, 'should be called at least twice')
 
 		dispose()
 	} finally {
@@ -349,9 +349,9 @@ test('addTransition - very short duration works', () => {
 		mocks.tick(5)
 		mocks.tick(10)
 
-		assert.strictEqual(progressValues[0], 0)
-		assert.ok(progressValues[1] >= 0.4 && progressValues[1] <= 0.6, 'middle progress should be around 0.5')
-		assert.strictEqual(progressValues[progressValues.length - 1], 1)
+		strictEqual(progressValues[0], 0)
+		ok(progressValues[1] >= 0.4 && progressValues[1] <= 0.6, 'middle progress should be around 0.5')
+		strictEqual(progressValues[progressValues.length - 1], 1)
 
 		dispose()
 	} finally {
@@ -372,8 +372,8 @@ test('addTransition - very long duration works', () => {
 		mocks.tick(1000)
 		mocks.tick(1000)
 
-		assert.strictEqual(progressValues[0], 0)
-		assert.ok(progressValues[1] < 0.15, 'progress should be small for long duration')
+		strictEqual(progressValues[0], 0)
+		ok(progressValues[1] < 0.15, 'progress should be small for long duration')
 
 		dispose()
 	} finally {
@@ -395,7 +395,7 @@ test('addTransition - callback without errors works', () => {
 		mocks.tick(50)
 		mocks.tick(50)
 
-		assert.ok(callCount >= 2, 'should be called multiple times')
+		ok(callCount >= 2, 'should be called multiple times')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -420,8 +420,8 @@ test('addTransition - cleanup without errors works', () => {
 		mocks.tick(50)
 		mocks.tick(50)
 
-		assert.strictEqual(callCount, 3, 'should be called multiple times')
-		assert.ok(cleanupCount >= 2, 'cleanup should be called')
+		strictEqual(callCount, 3, 'should be called multiple times')
+		ok(cleanupCount >= 2, 'cleanup should be called')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -443,7 +443,7 @@ test('addTransition - state is maintained across frames', () => {
 		mocks.tick(50)
 		mocks.tick(60)
 
-		assert.deepStrictEqual(values, [1, 2, 3], 'state should be maintained across frames')
+		deepStrictEqual(values, [1, 2, 3], 'state should be maintained across frames')
 		dispose()
 	} finally {
 		mocks.cleanup()
@@ -468,11 +468,11 @@ test('addTransition - multiple transitions work independently', () => {
 		mocks.tick(50)  // progress1 at 1.0, progress2 at 0.5
 		mocks.tick(50)  // progress1 done, progress2 at 0.75
 
-		assert.ok(progress1.length >= 3, 'first transition should have multiple calls')
-		assert.ok(progress2.length >= 3, 'second transition should have multiple calls')
+		ok(progress1.length >= 3, 'first transition should have multiple calls')
+		ok(progress2.length >= 3, 'second transition should have multiple calls')
 
-		assert.strictEqual(progress1[progress1.length - 1], 1, 'first transition should complete')
-		assert.ok(progress2[progress2.length - 1] < 1, 'second transition should not complete yet')
+		strictEqual(progress1[progress1.length - 1], 1, 'first transition should complete')
+		ok(progress2[progress2.length - 1] < 1, 'second transition should not complete yet')
 
 		dispose1()
 		dispose2()
@@ -509,7 +509,7 @@ test('addTransition - dispose during callback execution', () => {
 			// Might already be disposed
 		}
 
-		assert.ok(callCount <= 3, 'callback should not be called many times after self-disposal')
+		ok(callCount <= 3, 'callback should not be called many times after self-disposal')
 	} finally {
 		mocks.cleanup()
 	}
@@ -530,7 +530,7 @@ test('addTransition - progress never exceeds 1', () => {
 		mocks.tick(100) // Way past duration
 
 		for (const progress of progressValues) {
-			assert.ok(progress <= 1, `progress should not exceed 1, got ${progress}`)
+			ok(progress <= 1, `progress should not exceed 1, got ${progress}`)
 		}
 
 		dispose()
@@ -553,7 +553,7 @@ test('addTransition - progress is always non-negative', () => {
 		mocks.tick(60)
 
 		for (const progress of progressValues) {
-			assert.ok(progress >= 0, `progress should be non-negative, got ${progress}`)
+			ok(progress >= 0, `progress should be non-negative, got ${progress}`)
 		}
 
 		dispose()

@@ -1,10 +1,10 @@
 import {test} from 'node:test'
-import assert from 'node:assert'
+import {ok, strictEqual, doesNotThrow} from 'node:assert'
 import {addIntervalAsync} from '../index.js'
 
 test('addIntervalAsync - returns a disposer function', () => {
 	const dispose = addIntervalAsync(() => {}, 100)
-	assert.ok(typeof dispose === 'function', 'addIntervalAsync should return a disposer function')
+	ok(typeof dispose === 'function', 'addIntervalAsync should return a disposer function')
 	dispose()
 })
 
@@ -17,7 +17,7 @@ test('addIntervalAsync - callback is called immediately', async () => {
 	// Give it a moment to start
 	await new Promise((resolve) => setTimeout(resolve, 10))
 
-	assert.strictEqual(called, true, 'callback should be called immediately')
+	strictEqual(called, true, 'callback should be called immediately')
 	dispose()
 })
 
@@ -31,9 +31,9 @@ test('addIntervalAsync - callback receives disposer parameter', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 10))
 	dispose()
 
-	assert.ok(receivedDisposer, 'callback should receive a disposer')
-	assert.ok(receivedDisposer.signal, 'disposer should have a signal property')
-	assert.ok(receivedDisposer.signal instanceof AbortSignal, 'disposer.signal should be an AbortSignal')
+	ok(receivedDisposer, 'callback should receive a disposer')
+	ok(receivedDisposer.signal, 'disposer should have a signal property')
+	ok(receivedDisposer.signal instanceof AbortSignal, 'disposer.signal should be an AbortSignal')
 })
 
 test('addIntervalAsync - callback is called repeatedly', async () => {
@@ -45,7 +45,7 @@ test('addIntervalAsync - callback is called repeatedly', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 150))
 	dispose()
 
-	assert.ok(calls.length >= 3, `callback should be called at least 3 times, got ${calls.length}`)
+	ok(calls.length >= 3, `callback should be called at least 3 times, got ${calls.length}`)
 })
 
 test('addIntervalAsync - async callback is awaited', async () => {
@@ -64,10 +64,10 @@ test('addIntervalAsync - async callback is awaited', async () => {
 	// Check only complete pairs (dispose might interrupt a call)
 	const completePairs = Math.floor(events.length / 2)
 	for (let i = 0; i < completePairs * 2; i += 2) {
-		assert.strictEqual(events[i], 'start', `event at index ${i} should be start`)
-		assert.strictEqual(events[i + 1], 'end', `event at index ${i + 1} should be end`)
+		strictEqual(events[i], 'start', `event at index ${i} should be start`)
+		strictEqual(events[i + 1], 'end', `event at index ${i + 1} should be end`)
 	}
-	assert.ok(completePairs >= 1, 'should have at least one complete start-end pair')
+	ok(completePairs >= 1, 'should have at least one complete start-end pair')
 })
 
 test('addIntervalAsync - next interval waits for async callback to complete', async () => {
@@ -75,7 +75,7 @@ test('addIntervalAsync - next interval waits for async callback to complete', as
 	let executing = false
 
 	const dispose = addIntervalAsync(async () => {
-		assert.strictEqual(executing, false, 'should not have concurrent executions')
+		strictEqual(executing, false, 'should not have concurrent executions')
 		executing = true
 		calls.push(Date.now())
 		await new Promise((resolve) => setTimeout(resolve, 60))
@@ -88,7 +88,7 @@ test('addIntervalAsync - next interval waits for async callback to complete', as
 	// With 60ms execution and 50ms interval, calls should be spaced at least 60ms apart
 	for (let i = 1; i < calls.length; i++) {
 		const diff = calls[i] - calls[i - 1]
-		assert.ok(diff >= 50, `calls should be spaced at least 50ms apart, got ${diff}ms`)
+		ok(diff >= 50, `calls should be spaced at least 50ms apart, got ${diff}ms`)
 	}
 })
 
@@ -104,7 +104,7 @@ test('addIntervalAsync - disposer stops the interval', async () => {
 	const countAfterDispose = callCount
 	await new Promise((resolve) => setTimeout(resolve, 100))
 
-	assert.strictEqual(callCount, countAfterDispose, 'callback should not be called after disposal')
+	strictEqual(callCount, countAfterDispose, 'callback should not be called after disposal')
 })
 
 test('addIntervalAsync - disposer aborts the signal', async () => {
@@ -115,7 +115,7 @@ test('addIntervalAsync - disposer aborts the signal', async () => {
 	}, 100)
 
 	await new Promise((resolve) => setTimeout(resolve, 10))
-	assert.strictEqual(signalAborted, false, 'signal should not be aborted initially')
+	strictEqual(signalAborted, false, 'signal should not be aborted initially')
 
 	dispose()
 	await new Promise((resolve) => setTimeout(resolve, 10))
@@ -139,7 +139,7 @@ test('addIntervalAsync - aborted signal prevents next interval', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 200))
 
 	// Should be called twice, not more
-	assert.ok(callCount <= 3, `callback should be called at most 3 times, got ${callCount}`)
+	ok(callCount <= 3, `callback should be called at most 3 times, got ${callCount}`)
 })
 
 test('addIntervalAsync - callback completes successfully', async () => {
@@ -154,7 +154,7 @@ test('addIntervalAsync - callback completes successfully', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 120))
 	dispose()
 
-	assert.ok(callCount >= 2, 'callback should be called multiple times')
+	ok(callCount >= 2, 'callback should be called multiple times')
 })
 
 test('addIntervalAsync - async callback completes successfully', async () => {
@@ -169,7 +169,7 @@ test('addIntervalAsync - async callback completes successfully', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 120))
 	dispose()
 
-	assert.ok(callCount >= 2, 'async callback should be called multiple times')
+	ok(callCount >= 2, 'async callback should be called multiple times')
 })
 
 test('addIntervalAsync - callbacks are called sequentially', async () => {
@@ -186,7 +186,7 @@ test('addIntervalAsync - callbacks are called sequentially', async () => {
 
 	// Should see multiple callbacks
 	const callbackCount = events.filter(e => e === 'callback').length
-	assert.ok(callbackCount >= 2, `should have at least 2 callback calls, got ${callbackCount}`)
+	ok(callbackCount >= 2, `should have at least 2 callback calls, got ${callbackCount}`)
 })
 
 test('addIntervalAsync - multiple disposals are safe', async () => {
@@ -194,7 +194,7 @@ test('addIntervalAsync - multiple disposals are safe', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 10))
 
-	assert.doesNotThrow(() => {
+	doesNotThrow(() => {
 		dispose()
 		dispose()
 		dispose()
@@ -211,7 +211,7 @@ test('addIntervalAsync - callback returning undefined is handled', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 120))
 	dispose()
 
-	assert.ok(callCount >= 2, 'callback should be called multiple times even when returning undefined')
+	ok(callCount >= 2, 'callback should be called multiple times even when returning undefined')
 })
 
 test('addIntervalAsync - async callback returning void is handled', async () => {
@@ -224,7 +224,7 @@ test('addIntervalAsync - async callback returning void is handled', async () => 
 	await new Promise((resolve) => setTimeout(resolve, 120))
 	dispose()
 
-	assert.ok(callCount >= 2, 'callback should be called multiple times')
+	ok(callCount >= 2, 'callback should be called multiple times')
 })
 
 test('addIntervalAsync - zero interval works', async () => {
@@ -236,7 +236,7 @@ test('addIntervalAsync - zero interval works', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 50))
 	dispose()
 
-	assert.ok(callCount >= 3, 'callback should be called multiple times even with 0 interval')
+	ok(callCount >= 3, 'callback should be called multiple times even with 0 interval')
 })
 
 test('addIntervalAsync - callback without errors works', async () => {
@@ -249,7 +249,7 @@ test('addIntervalAsync - callback without errors works', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 150))
 	dispose()
 
-	assert.ok(callCount >= 3, 'callback should be called multiple times')
+	ok(callCount >= 3, 'callback should be called multiple times')
 })
 
 test('addIntervalAsync - async callback without errors works', async () => {
@@ -263,7 +263,7 @@ test('addIntervalAsync - async callback without errors works', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 150))
 	dispose()
 
-	assert.ok(callCount >= 2, 'async callback should be called multiple times')
+	ok(callCount >= 2, 'async callback should be called multiple times')
 })
 
 test('addIntervalAsync - error in cleanup is handled', async () => {
@@ -277,7 +277,7 @@ test('addIntervalAsync - error in cleanup is handled', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 100))
 
-	assert.doesNotThrow(() => {
+	doesNotThrow(() => {
 		dispose()
 	}, 'disposal should work even if cleanup throws error')
 })
@@ -293,7 +293,7 @@ test('addIntervalAsync - promise rejection in cleanup is handled', async () => {
 
 	await new Promise((resolve) => setTimeout(resolve, 100))
 
-	assert.doesNotThrow(() => {
+	doesNotThrow(() => {
 		dispose()
 	}, 'disposal should work even if async cleanup rejects')
 })
@@ -313,7 +313,7 @@ test('addIntervalAsync - state is maintained across async calls', async () => {
 
 	// Check that values are sequential
 	for (let i = 0; i < values.length; i++) {
-		assert.strictEqual(values[i], i + 1, `value at index ${i} should be ${i + 1}`)
+		strictEqual(values[i], i + 1, `value at index ${i} should be ${i + 1}`)
 	}
 })
 
@@ -332,7 +332,7 @@ test('addIntervalAsync - rapid disposal during first execution', async () => {
 	await new Promise((resolve) => setTimeout(resolve, 100))
 
 	// Should be called once, maybe twice if timing is right
-	assert.ok(callCount <= 2, 'should have minimal calls when disposed early')
+	ok(callCount <= 2, 'should have minimal calls when disposed early')
 })
 
 test('addIntervalAsync - disposer.signal can be used for cancellation', async () => {
@@ -362,7 +362,7 @@ test('addIntervalAsync - disposer.signal can be used for cancellation', async ()
 	await new Promise((resolve) => setTimeout(resolve, 150))
 
 	// Should see start and abort, not completed
-	assert.ok(events.includes('start'), 'should have start event')
-	assert.ok(events.includes('aborted'), 'should have aborted event')
-	assert.strictEqual(events.filter((e) => e === 'completed').length, 0, 'should not have completed')
+	ok(events.includes('start'), 'should have start event')
+	ok(events.includes('aborted'), 'should have aborted event')
+	strictEqual(events.filter((e) => e === 'completed').length, 0, 'should not have completed')
 })

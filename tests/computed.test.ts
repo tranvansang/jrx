@@ -1,16 +1,16 @@
 import {test} from 'node:test'
-import assert from 'node:assert'
+import {ok, strictEqual, deepStrictEqual, throws} from 'node:assert'
 import computed from '../computed.js'
 
 test('computed - returns an object with value getter', () => {
 	const c = computed(() => 42)
-	assert.ok(c, 'computed should return an object')
-	assert.ok('value' in c, 'computed should have value property')
+	ok(c, 'computed should return an object')
+	ok('value' in c, 'computed should have value property')
 })
 
 test('computed - value getter returns computed value', () => {
 	const c = computed(() => 42)
-	assert.strictEqual(c.value, 42, 'value should return computed result')
+	strictEqual(c.value, 42, 'value should return computed result')
 })
 
 test('computed - without getDeps, always recomputes', () => {
@@ -24,7 +24,7 @@ test('computed - without getDeps, always recomputes', () => {
 	c.value
 	c.value
 
-	assert.strictEqual(callCount, 3, 'fn should be called every time without getDeps')
+	strictEqual(callCount, 3, 'fn should be called every time without getDeps')
 })
 
 test('computed - with getDeps, caches value when deps are same', () => {
@@ -43,10 +43,10 @@ test('computed - with getDeps, caches value when deps are same', () => {
 	const v2 = c.value
 	const v3 = c.value
 
-	assert.strictEqual(callCount, 1, 'fn should be called once when deps are same')
-	assert.strictEqual(v1, 2)
-	assert.strictEqual(v2, 2)
-	assert.strictEqual(v3, 2)
+	strictEqual(callCount, 1, 'fn should be called once when deps are same')
+	strictEqual(v1, 2)
+	strictEqual(v2, 2)
+	strictEqual(v3, 2)
 })
 
 test('computed - recomputes when deps change', () => {
@@ -62,18 +62,18 @@ test('computed - recomputes when deps change', () => {
 	)
 
 	const v1 = c.value
-	assert.strictEqual(v1, 2)
-	assert.strictEqual(callCount, 1)
+	strictEqual(v1, 2)
+	strictEqual(callCount, 1)
 
 	dep = 2
 	const v2 = c.value
-	assert.strictEqual(v2, 4)
-	assert.strictEqual(callCount, 2, 'fn should be called again when deps change')
+	strictEqual(v2, 4)
+	strictEqual(callCount, 2, 'fn should be called again when deps change')
 
 	dep = 3
 	const v3 = c.value
-	assert.strictEqual(v3, 6)
-	assert.strictEqual(callCount, 3)
+	strictEqual(v3, 6)
+	strictEqual(callCount, 3)
 })
 
 test('computed - deps are compared using Object.is', () => {
@@ -91,16 +91,16 @@ test('computed - deps are compared using Object.is', () => {
 	)
 
 	c.value
-	assert.strictEqual(callCount, 1)
+	strictEqual(callCount, 1)
 
 	// Same object reference
 	c.value
-	assert.strictEqual(callCount, 1, 'should not recompute for same object reference')
+	strictEqual(callCount, 1, 'should not recompute for same object reference')
 
 	// Different object reference (even with same content)
 	dep = obj2
 	c.value
-	assert.strictEqual(callCount, 2, 'should recompute for different object reference')
+	strictEqual(callCount, 2, 'should recompute for different object reference')
 })
 
 test('computed - multiple dependencies are tracked', () => {
@@ -117,25 +117,25 @@ test('computed - multiple dependencies are tracked', () => {
 	)
 
 	const v1 = c.value
-	assert.strictEqual(v1, 3)
-	assert.strictEqual(callCount, 1)
+	strictEqual(v1, 3)
+	strictEqual(callCount, 1)
 
 	// Change first dep
 	dep1 = 5
 	const v2 = c.value
-	assert.strictEqual(v2, 7)
-	assert.strictEqual(callCount, 2)
+	strictEqual(v2, 7)
+	strictEqual(callCount, 2)
 
 	// Change second dep
 	dep2 = 10
 	const v3 = c.value
-	assert.strictEqual(v3, 15)
-	assert.strictEqual(callCount, 3)
+	strictEqual(v3, 15)
+	strictEqual(callCount, 3)
 
 	// No change
 	const v4 = c.value
-	assert.strictEqual(v4, 15)
-	assert.strictEqual(callCount, 3, 'should not recompute when deps are unchanged')
+	strictEqual(v4, 15)
+	strictEqual(callCount, 3, 'should not recompute when deps are unchanged')
 })
 
 test('computed - empty dependencies array caches forever', () => {
@@ -153,9 +153,9 @@ test('computed - empty dependencies array caches forever', () => {
 	const v2 = c.value
 	const v3 = c.value
 
-	assert.strictEqual(callCount, 1, 'fn should be called once with empty deps')
-	assert.strictEqual(v1, v2)
-	assert.strictEqual(v2, v3)
+	strictEqual(callCount, 1, 'fn should be called once with empty deps')
+	strictEqual(v1, v2)
+	strictEqual(v2, v3)
 })
 
 test('computed - changing number of dependencies triggers recomputation', () => {
@@ -171,16 +171,16 @@ test('computed - changing number of dependencies triggers recomputation', () => 
 	)
 
 	c.value
-	assert.strictEqual(callCount, 1)
+	strictEqual(callCount, 1)
 
 	// Same deps
 	c.value
-	assert.strictEqual(callCount, 1)
+	strictEqual(callCount, 1)
 
 	// Different number of deps
 	deps = [1, 2, 3]
 	c.value
-	assert.strictEqual(callCount, 2, 'should recompute when deps length changes')
+	strictEqual(callCount, 2, 'should recompute when deps length changes')
 })
 
 test('computed - handles null and undefined deps', () => {
@@ -196,17 +196,17 @@ test('computed - handles null and undefined deps', () => {
 	)
 
 	const v1 = c.value
-	assert.strictEqual(v1, null)
+	strictEqual(v1, null)
 
 	dep = undefined
 	const v2 = c.value
-	assert.strictEqual(v2, undefined)
-	assert.strictEqual(callCount, 2)
+	strictEqual(v2, undefined)
+	strictEqual(callCount, 2)
 
 	dep = null
 	const v3 = c.value
-	assert.strictEqual(v3, null)
-	assert.strictEqual(callCount, 3)
+	strictEqual(v3, null)
+	strictEqual(callCount, 3)
 })
 
 test('computed - handles NaN correctly with Object.is', () => {
@@ -222,15 +222,15 @@ test('computed - handles NaN correctly with Object.is', () => {
 	)
 
 	c.value
-	assert.strictEqual(callCount, 1)
+	strictEqual(callCount, 1)
 
 	// NaN should equal NaN with Object.is
 	c.value
-	assert.strictEqual(callCount, 1, 'should not recompute when dep is still NaN')
+	strictEqual(callCount, 1, 'should not recompute when dep is still NaN')
 
 	dep = 42
 	c.value
-	assert.strictEqual(callCount, 2)
+	strictEqual(callCount, 2)
 })
 
 test('computed - handles +0 and -0 correctly with Object.is', () => {
@@ -246,12 +246,12 @@ test('computed - handles +0 and -0 correctly with Object.is', () => {
 	)
 
 	c.value
-	assert.strictEqual(callCount, 1)
+	strictEqual(callCount, 1)
 
 	// +0 and -0 are different with Object.is
 	dep = -0
 	c.value
-	assert.strictEqual(callCount, 2, 'should recompute when +0 changes to -0')
+	strictEqual(callCount, 2, 'should recompute when +0 changes to -0')
 })
 
 test('computed - fn can access external state', () => {
@@ -262,27 +262,27 @@ test('computed - fn can access external state', () => {
 	})
 
 	state.count = 5
-	assert.strictEqual(c.value, 10)
+	strictEqual(c.value, 10)
 
 	state.count = 10
-	assert.strictEqual(c.value, 20)
+	strictEqual(c.value, 20)
 })
 
 test('computed - returns different types', () => {
 	const c1 = computed(() => 'string')
-	assert.strictEqual(c1.value, 'string')
+	strictEqual(c1.value, 'string')
 
 	const c2 = computed(() => [1, 2, 3])
-	assert.deepStrictEqual(c2.value, [1, 2, 3])
+	deepStrictEqual(c2.value, [1, 2, 3])
 
 	const c3 = computed(() => ({a: 1}))
-	assert.deepStrictEqual(c3.value, {a: 1})
+	deepStrictEqual(c3.value, {a: 1})
 
 	const c4 = computed(() => null)
-	assert.strictEqual(c4.value, null)
+	strictEqual(c4.value, null)
 
 	const c5 = computed(() => undefined)
-	assert.strictEqual(c5.value, undefined)
+	strictEqual(c5.value, undefined)
 })
 
 test('computed - fn returning arrays is handled correctly', () => {
@@ -300,10 +300,10 @@ test('computed - fn returning arrays is handled correctly', () => {
 	const v1 = c.value
 	const v2 = c.value
 
-	assert.strictEqual(callCount, 1)
-	assert.deepStrictEqual(v1, [1, 2])
-	assert.deepStrictEqual(v2, [1, 2])
-	assert.strictEqual(v1, v2, 'should return same array reference when cached')
+	strictEqual(callCount, 1)
+	deepStrictEqual(v1, [1, 2])
+	deepStrictEqual(v2, [1, 2])
+	strictEqual(v1, v2, 'should return same array reference when cached')
 })
 
 test('computed - fn throwing error is propagated', () => {
@@ -311,7 +311,7 @@ test('computed - fn throwing error is propagated', () => {
 		throw new Error('Test error')
 	})
 
-	assert.throws(
+	throws(
 		() => c.value,
 		/Test error/,
 		'accessing value should throw the error'
@@ -334,14 +334,14 @@ test('computed - error in fn with deps is handled', () => {
 		() => [dep]
 	)
 
-	assert.throws(() => c.value)
-	assert.strictEqual(callCount, 1)
+	throws(() => c.value)
+	strictEqual(callCount, 1)
 
 	shouldThrow = false
 	dep = 2 // Change dep to force recomputation
 	const v = c.value
-	assert.strictEqual(v, 2)
-	assert.strictEqual(callCount, 2, 'should recompute after error when deps change')
+	strictEqual(v, 2)
+	strictEqual(callCount, 2, 'should recompute after error when deps change')
 })
 
 test('computed - getDeps throwing error is propagated', () => {
@@ -352,7 +352,7 @@ test('computed - getDeps throwing error is propagated', () => {
 		}
 	)
 
-	assert.throws(
+	throws(
 		() => c.value,
 		/getDeps error/,
 		'accessing value should throw getDeps error'
@@ -373,12 +373,12 @@ test('computed - complex dependency object', () => {
 
 	c.value
 	c.value
-	assert.strictEqual(callCount, 1, 'should cache when same object reference')
+	strictEqual(callCount, 1, 'should cache when same object reference')
 
 	// Mutating the object doesn't trigger recomputation (same reference)
 	dep.a = 5
 	c.value
-	assert.strictEqual(callCount, 1, 'mutation should not trigger recomputation')
+	strictEqual(callCount, 1, 'mutation should not trigger recomputation')
 })
 
 test('computed - primitive dependencies work correctly', () => {
@@ -397,19 +397,19 @@ test('computed - primitive dependencies work correctly', () => {
 
 	c.value
 	c.value
-	assert.strictEqual(callCount, 1)
+	strictEqual(callCount, 1)
 
 	str = 'world'
 	c.value
-	assert.strictEqual(callCount, 2)
+	strictEqual(callCount, 2)
 
 	num = 100
 	c.value
-	assert.strictEqual(callCount, 3)
+	strictEqual(callCount, 3)
 
 	bool = false
 	c.value
-	assert.strictEqual(callCount, 4)
+	strictEqual(callCount, 4)
 })
 
 test('computed - first access always computes', () => {
@@ -425,7 +425,7 @@ test('computed - first access always computes', () => {
 	)
 
 	c.value
-	assert.strictEqual(callCount, 1, 'first access should always compute')
+	strictEqual(callCount, 1, 'first access should always compute')
 })
 
 test('computed - independent computed values', () => {
@@ -451,18 +451,18 @@ test('computed - independent computed values', () => {
 
 	c1.value
 	c1.value
-	assert.strictEqual(count1, 1, 'first computed should cache independently')
+	strictEqual(count1, 1, 'first computed should cache independently')
 
 	c2.value
 	c2.value
-	assert.strictEqual(count2, 1, 'second computed should cache independently')
+	strictEqual(count2, 1, 'second computed should cache independently')
 
 	dep = 2
 	c1.value
-	assert.strictEqual(count1, 2, 'first computed should recompute')
+	strictEqual(count1, 2, 'first computed should recompute')
 
 	c2.value
-	assert.strictEqual(count2, 2, 'second computed should recompute')
+	strictEqual(count2, 2, 'second computed should recompute')
 })
 
 test('computed - computed based on another computed', () => {
@@ -478,10 +478,10 @@ test('computed - computed based on another computed', () => {
 		() => [c1.value]
 	)
 
-	assert.strictEqual(c2.value, 14) // (2 * 2) + 10
+	strictEqual(c2.value, 14) // (2 * 2) + 10
 
 	dep = 3
-	assert.strictEqual(c2.value, 16) // (3 * 2) + 10
+	strictEqual(c2.value, 16) // (3 * 2) + 10
 })
 
 test('computed - getDeps can access closure', () => {
@@ -498,11 +498,11 @@ test('computed - getDeps can access closure', () => {
 
 	c.value
 	c.value
-	assert.strictEqual(callCount, 1)
+	strictEqual(callCount, 1)
 
 	state.x = 5
 	c.value
-	assert.strictEqual(callCount, 2, 'should recompute when state.x changes')
+	strictEqual(callCount, 2, 'should recompute when state.x changes')
 })
 
 test('computed - large number of dependencies', () => {
@@ -519,13 +519,13 @@ test('computed - large number of dependencies', () => {
 
 	c.value
 	c.value
-	assert.strictEqual(callCount, 1, 'should cache with many deps')
+	strictEqual(callCount, 1, 'should cache with many deps')
 
 	// Create new array with changed value to trigger recomputation
 	deps = [...deps]
 	deps[50] = 1000
 	c.value
-	assert.strictEqual(callCount, 2, 'should recompute when one dep changes')
+	strictEqual(callCount, 2, 'should recompute when one dep changes')
 })
 
 test('computed - value can be accessed multiple times in sequence', () => {
@@ -536,7 +536,7 @@ test('computed - value can be accessed multiple times in sequence', () => {
 	)
 
 	for (let i = 0; i < 10; i++) {
-		assert.strictEqual(c.value, 10)
+		strictEqual(c.value, 10)
 	}
 })
 
@@ -555,10 +555,10 @@ test('computed - works with symbol dependencies', () => {
 
 	c.value
 	c.value
-	assert.strictEqual(callCount, 1)
+	strictEqual(callCount, 1)
 
 	const sym2 = Symbol('test')
 	dep = sym2
 	c.value
-	assert.strictEqual(callCount, 2, 'should recompute for different symbol')
+	strictEqual(callCount, 2, 'should recompute for different symbol')
 })
