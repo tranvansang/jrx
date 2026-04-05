@@ -481,35 +481,24 @@ test('addTransition - multiple transitions work independently', () => {
 	}
 })
 
-test('addTransition - dispose during callback execution', () => {
+test('addTransition - dispose stops further frames', () => {
 	const mocks = setupRAFMocks()
 	try {
-		let disposeFunc: (() => void) | undefined
 		let callCount = 0
 
-		disposeFunc = addTransition(() => {
+		const dispose = addTransition(() => {
 			callCount++
-			if (callCount === 2) {
-				try {
-					disposeFunc!()
-				} catch (e) {
-					// Might already be disposed
-				}
-			}
 		}, 1000)
 
 		mocks.tick(0)
 		mocks.tick(50)
+		strictEqual(callCount, 2, 'callback should be called twice')
+
+		dispose()
+		mocks.tick(50)
 		mocks.tick(50)
 
-		// Ensure cleanup
-		try {
-			disposeFunc()
-		} catch (e) {
-			// Might already be disposed
-		}
-
-		ok(callCount <= 3, 'callback should not be called many times after self-disposal')
+		strictEqual(callCount, 2, 'callback should not be called after disposal')
 	} finally {
 		mocks.cleanup()
 	}

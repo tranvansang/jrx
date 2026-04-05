@@ -300,35 +300,24 @@ test('addRequestAnimationFrameLoop - cleanup without errors works', () => {
 	}
 })
 
-test('addRequestAnimationFrameLoop - dispose during callback execution', () => {
+test('addRequestAnimationFrameLoop - dispose stops further frames', () => {
 	const mocks = setupRAFMocks()
 	try {
-		let disposeFunc: (() => void) | undefined
 		let callCount = 0
 
-		disposeFunc = addRequestAnimationFrameLoop(() => {
+		const dispose = addRequestAnimationFrameLoop(() => {
 			callCount++
-			if (callCount === 2) {
-				try {
-					disposeFunc!()
-				} catch (e) {
-					// Might already be disposed
-				}
-			}
 		})
 
 		mocks.tick()
 		mocks.tick()
+		strictEqual(callCount, 2, 'callback should be called twice')
+
+		dispose()
+		mocks.tick()
 		mocks.tick()
 
-		// Ensure cleanup
-		try {
-			disposeFunc()
-		} catch (e) {
-			// Might already be disposed
-		}
-
-		ok(callCount <= 3, 'callback should not be called many times after self-disposal')
+		strictEqual(callCount, 2, 'callback should not be called after disposal')
 	} finally {
 		mocks.cleanup()
 	}

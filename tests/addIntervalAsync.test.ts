@@ -21,19 +21,18 @@ test('addIntervalAsync - callback is called immediately', async () => {
 	dispose()
 })
 
-test('addIntervalAsync - callback receives disposer parameter', async () => {
-	let receivedDisposer: any
+test('addIntervalAsync - callback receives no parameters', async () => {
+	let receivedArgs: any[] | undefined
 
-	const dispose = addIntervalAsync((disposer) => {
-		receivedDisposer = disposer
+	const dispose = addIntervalAsync((...args: any[]) => {
+		receivedArgs = args
 	}, 100)
 
 	await new Promise((resolve) => setTimeout(resolve, 10))
 	dispose()
 
-	ok(receivedDisposer, 'callback should receive a disposer')
-	ok(receivedDisposer.signal, 'disposer should have a signal property')
-	ok(receivedDisposer.signal instanceof AbortSignal, 'disposer.signal should be an AbortSignal')
+	ok(receivedArgs !== undefined, 'callback should have been called')
+	strictEqual(receivedArgs!.length, 0, 'callback should receive no arguments')
 })
 
 test('addIntervalAsync - callback is called repeatedly', async () => {
@@ -107,39 +106,36 @@ test('addIntervalAsync - disposer stops the interval', async () => {
 	strictEqual(callCount, countAfterDispose, 'callback should not be called after disposal')
 })
 
-test('addIntervalAsync - disposer aborts the signal', async () => {
-	let signalAborted = false
-
-	const dispose = addIntervalAsync((disposer) => {
-		signalAborted = disposer.signal.aborted
-	}, 100)
-
-	await new Promise((resolve) => setTimeout(resolve, 10))
-	strictEqual(signalAborted, false, 'signal should not be aborted initially')
-
-	dispose()
-	await new Promise((resolve) => setTimeout(resolve, 10))
-
-	// Check that the signal was aborted
-	// We can't directly check the disposer here, but we can verify no more calls happen
-})
-
-test('addIntervalAsync - aborted signal prevents next interval', async () => {
+test('addIntervalAsync - disposal stops future callbacks', async () => {
 	let callCount = 0
 
-	const dispose = addIntervalAsync(async (disposer) => {
+	const dispose = addIntervalAsync(() => {
 		callCount++
-		if (callCount === 2) {
-			dispose()
-			// Signal should be aborted after this
-			await new Promise((resolve) => setTimeout(resolve, 10))
-		}
 	}, 50)
 
-	await new Promise((resolve) => setTimeout(resolve, 200))
+	await new Promise((resolve) => setTimeout(resolve, 10))
+	const countBeforeDispose = callCount
+	dispose()
 
-	// Should be called twice, not more
-	ok(callCount <= 3, `callback should be called at most 3 times, got ${callCount}`)
+	await new Promise((resolve) => setTimeout(resolve, 100))
+	strictEqual(callCount, countBeforeDispose, 'no more callbacks after disposal')
+})
+
+test('addIntervalAsync - disposal during async callback prevents next interval', async () => {
+	let callCount = 0
+
+	const dispose = addIntervalAsync(async () => {
+		callCount++
+		await new Promise((resolve) => setTimeout(resolve, 30))
+	}, 50)
+
+	await new Promise((resolve) => setTimeout(resolve, 40))
+	dispose()
+
+	const countAfterDispose = callCount
+	await new Promise((resolve) => setTimeout(resolve, 150))
+
+	strictEqual(callCount, countAfterDispose, 'no more callbacks after disposal during async execution')
 })
 
 test('addIntervalAsync - callback completes successfully', async () => {
@@ -335,34 +331,16 @@ test('addIntervalAsync - rapid disposal during first execution', async () => {
 	ok(callCount <= 2, 'should have minimal calls when disposed early')
 })
 
-test('addIntervalAsync - disposer.signal can be used for cancellation', async () => {
-	const events: string[] = []
+test('addIntervalAsync - callback can return a disposable for cleanup', async () => {
+	let disposeCalled = false
 
-	const dispose = addIntervalAsync(async (disposer) => {
-		events.push('start')
+	const dispose = addIntervalAsync(() => {
+		return {[Symbol.dispose]() { disposeCalled = true }} as any
+	}, 100)
 
-		// Simulate long operation that respects abort signal
-		await new Promise((resolve, reject) => {
-			const timeout = setTimeout(() => {
-				events.push('completed')
-				resolve(undefined)
-			}, 100)
-
-			disposer.signal.addEventListener('abort', () => {
-				clearTimeout(timeout)
-				events.push('aborted')
-				resolve(undefined)
-			})
-		})
-	}, 50)
-
-	await new Promise((resolve) => setTimeout(resolve, 30))
+	await new Promise((resolve) => setTimeout(resolve, 10))
 	dispose()
 
-	await new Promise((resolve) => setTimeout(resolve, 150))
-
-	// Should see start and abort, not completed
-	ok(events.includes('start'), 'should have start event')
-	ok(events.includes('aborted'), 'should have aborted event')
-	strictEqual(events.filter((e) => e === 'completed').length, 0, 'should not have completed')
+	await new Promise((resolve) => setTimeout(resolve, 10))
+	strictEqual(disposeCalled, true, 'disposable returned from callback should be disposed on cleanup')
 })

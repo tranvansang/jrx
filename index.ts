@@ -1,20 +1,33 @@
-import {type Disposer, makeDisposer, makeReset} from 'jdisposer'
-
-import retry, {addRetry} from './retry.js'
+import retry from './retry.js'
 import computed from './computed.js'
-import addEvtListener from './addEvtListener.js'
 
-export {retry, computed, addEvtListener, addRetry}
+export {retry, computed}
+
+export function makeReset() {
+	let stack = new DisposableStack()
+	return () => {
+		stack.dispose()
+		return (stack = new DisposableStack())
+	}
+}
+
+export function makeAsyncReset() {
+	let stack = new AsyncDisposableStack()
+	return async () => {
+		await stack.disposeAsync()
+		return (stack = new AsyncDisposableStack())
+	}
+}
 
 export function makeRenderLoop() {
-	let loop_: ((time: DOMHighResTimeStamp) => void | (() => void)) | undefined
+	let loop_: ((time: DOMHighResTimeStamp) => undefined | (() => void)) | undefined
 	const reset = makeReset()
 
 	return {
 		loop(this: void, time: DOMHighResTimeStamp) {
-			reset().add(loop_?.(time))
+			reset().adopt(loop_?.(time), v => v?.())
 		},
-		setLoop(this: void, loop: (time: DOMHighResTimeStamp) => void | (() => void)) {
+		setLoop(this: void, loop: (time: DOMHighResTimeStamp) => undefined | (() => void)) {
 			loop_ = loop
 			return () => {
 				reset()
@@ -24,7 +37,7 @@ export function makeRenderLoop() {
 	}
 }
 
-export function addInterval(cb: () => void | (() => any), ms: number) {
+export function addInterval(cb: () => undefined | (() => any), ms: number) {
 	const reset = makeReset()
 	let timeout: ReturnType<typeof setTimeout>
 	wrapper()
@@ -34,13 +47,13 @@ export function addInterval(cb: () => void | (() => any), ms: number) {
 	}
 
 	function wrapper() {
-		reset().add(cb())
+		reset().adopt(cb(), v => v?.())
 		timeout = setTimeout(wrapper, ms)
 	}
 }
 
 export function addIntervalAsync(
-	cb: (disposer: Disposer) => void | (() => any) | Promise<void> | Promise<() => any>,
+	cb: () => (void | Disposable) & (void | (() => any) | Promise<void> | Promise<() => any>),
 	ms: number,
 ) {
 	const reset = makeReset()
@@ -52,22 +65,25 @@ export function addIntervalAsync(
 	}
 
 	async function wrapper() {
-		const disposer = reset()
-		await cb(disposer)
-		if (!disposer.signal.aborted) timeout = setTimeout(wrapper, ms)
+		const stack = reset()
+		await stack.adopt(cb(), v => v?.[Symbol.dispose]?.())
+		if (!stack.disposed) timeout = setTimeout(wrapper, ms)
 	}
 }
 
-export function addRequestAnimationFrame(cb: (now: DOMHighResTimeStamp) => void | (() => any)) {
-	const disposer = makeDisposer()
-	const raf = requestAnimationFrame(now => disposer.add(cb(now)))
+export function addRequestAnimationFrame(cb: (now: DOMHighResTimeStamp) => undefined | (() => any)) {
+	const stack = new DisposableStack()
+	const raf = requestAnimationFrame(now => {
+		if (stack.disposed) return
+		stack.adopt(cb(now), v => v?.())
+	})
 	return () => {
-		disposer.dispose()
+		stack.dispose()
 		cancelAnimationFrame(raf)
 	}
 }
 
-export function addRequestAnimationFrameLoop(cb: (now: DOMHighResTimeStamp) => void | (() => any)) {
+export function addRequestAnimationFrameLoop(cb: (now: DOMHighResTimeStamp) => undefined | (() => any)) {
 	const reset = makeReset()
 	let raf = requestAnimationFrame(wrapper)
 	return () => {
@@ -76,21 +92,9 @@ export function addRequestAnimationFrameLoop(cb: (now: DOMHighResTimeStamp) => v
 	}
 
 	function wrapper(now: DOMHighResTimeStamp) {
-		reset().add(cb(now))
+		reset().adopt(cb(now), v => v?.())
 		raf = requestAnimationFrame(wrapper)
 	}
-}
-
-export function addSubs<Subs extends any[]>(subs: Subs, cb: () => void | (() => void), {now}: {now?: boolean} = {}) {
-	const disposer = makeDisposer()
-
-	const reset = makeReset()
-	disposer.add(reset)
-
-	for (const sub of subs) disposer.add(sub(() => reset().add(cb())))
-	if (now) reset().add(cb())
-
-	return disposer.dispose
 }
 
 export function addTimeout(cb: () => void, ms: number) {
@@ -98,7 +102,7 @@ export function addTimeout(cb: () => void, ms: number) {
 	return () => clearTimeout(timeout)
 }
 
-export function addTransition(cb: (progress: number) => void | (() => void), durationMs: number) {
+export function addTransition(cb: (progress: number) => undefined | (() => void), durationMs: number) {
 	const reset = makeReset()
 	let start: DOMHighResTimeStamp | undefined
 	let raf = requestAnimationFrame(wrapper)
@@ -110,13 +114,13 @@ export function addTransition(cb: (progress: number) => void | (() => void), dur
 	function wrapper(now: DOMHighResTimeStamp) {
 		if (start === undefined) {
 			start = now
-			reset().add(cb(0))
+			reset().adopt(cb(0), v => v?.())
 			raf = requestAnimationFrame(wrapper)
 		} else {
 			const progress = (now - start) / durationMs
-			if (progress >= 1) reset().add(cb(1))
+			if (progress >= 1) reset().adopt(cb(1), v => v?.())
 			else {
-				reset().add(cb(progress))
+				reset().adopt(cb(progress), v => v?.())
 				raf = requestAnimationFrame(wrapper)
 			}
 		}

@@ -1,6 +1,12 @@
 # jrx
 
-A lightweight TypeScript library for managing side effects, subscriptions, and animations with automatic cleanup. Built on top of [jdisposer](https://github.com/tranvansang/jdisposer) for safe resource management.
+A lightweight TypeScript library for managing side effects, subscriptions, and animations with automatic cleanup using the [Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management) API.
+
+## Prerequisites
+
+This library requires the [Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management) globals (`DisposableStack`, `AsyncDisposableStack`, `Symbol.dispose`, `Symbol.asyncDispose`). If your environment does not support them natively, you must load a polyfill before importing jrx (e.g. [`core-js`](https://github.com/nicolo-ribaudo/tc39-proposal-explicit-resource-management-polyfill)).
+
+The `using` keyword is **not** required — this library only uses the API objects directly, so no transpiler support for `using` declarations is needed.
 
 ## Installation
 
@@ -11,37 +17,64 @@ npm i jrx
 ## Features
 
 - Automatic cleanup for all effects and subscriptions
-- Type-safe disposer pattern
+- Built on the native `DisposableStack` / `AsyncDisposableStack` API
 - Retry logic with exponential backoff and cancellation
-- Single dependency (jdisposer)
+- Zero dependencies
 - Composable reactive utilities
 - Browser and Node.js compatible
 
 ## API Overview
 
+- [`makeReset()`](#makereset) - Create a resettable `DisposableStack`
+- [`makeAsyncReset()`](#makeasyncreset) - Create a resettable `AsyncDisposableStack`
 - [`makeRenderLoop()`](#makerenderloop) - Render loops with automatic cleanup
-- [`addEvtListener(target, event, handler, option?)`](#addevtlistenertarget-event-handler-option) - Event listeners with cleanup
 - [`addInterval(cb, ms)`](#addintervalcb-ms) - Repeating intervals with cleanup
 - [`addIntervalAsync(cb, ms)`](#addintervalasynccb-ms) - Async intervals with cancellation
 - [`addRequestAnimationFrame(cb)`](#addrequestanimationframecb) - Single animation frame with cleanup
 - [`addRequestAnimationFrameLoop(cb)`](#addrequestanimationframeloopcb) - Animation frame loops
-- [`addSubs(subs, cb, options?)`](#addsubssubs-cb-options) - Multiple subscription management
 - [`addTimeout(cb, ms)`](#addtimeoutcb-ms) - Timeouts with cleanup
 - [`addTransition(cb, durationMs)`](#addtransitioncb-durationms) - Progress-based animations
 - [`computed(fn, getDeps?)`](#computedfn-getdeps) - Memoized computed values
-- [`retry(cb, options?)`](#retrycb-options) - Async retry with exponential backoff
-- [`addRetry(cb, options?)`](#addretrycb-options) - Fire-and-forget retry with disposal
+- [`retry(cb, backoffSec?)`](#retrycb-backoffsec) - Retry with exponential backoff
 
 ## API
+
+### `makeReset()`
+
+Creates a resettable `DisposableStack`. Each call disposes the previous stack and returns a new one.
+
+```typescript
+import {makeReset} from 'jrx'
+
+const reset = makeReset()
+const stack = reset() // Get a fresh DisposableStack
+
+// Add disposables
+stack.use(someDisposable)
+
+// Reset - disposes previous stack, returns new one
+const newStack = reset()
+```
+
+### `makeAsyncReset()`
+
+Async version of `makeReset` using `AsyncDisposableStack`.
+
+```typescript
+import {makeAsyncReset} from 'jrx'
+
+const reset = makeAsyncReset()
+const stack = await reset() // Get a fresh AsyncDisposableStack
+```
 
 ### `makeRenderLoop()`
 
 Creates a render loop with automatic cleanup management.
 
 ```typescript
-import { makeRenderLoop } from 'jrx'
+import {makeRenderLoop} from 'jrx'
 
-const { loop, setLoop } = makeRenderLoop()
+const {loop, setLoop} = makeRenderLoop()
 
 // Set the loop function
 const dispose = setLoop((time) => {
@@ -58,28 +91,6 @@ requestAnimationFrame(loop)
 
 // Cleanup
 dispose()
-```
-
-### `addEvtListener(target, event, handler, option?)`
-
-Adds an event listener to a target and returns a disposer that removes it. Works with any object that implements `addEventListener`/`removeEventListener` (DOM elements, `window`, `document`, etc.).
-
-```typescript
-import { addEvtListener } from 'jrx'
-
-// Basic usage
-const dispose = addEvtListener(window, 'resize', (e) => {
-  console.log('Window resized', e)
-})
-
-// With options
-const dispose2 = addEvtListener(element, 'click', (e) => {
-  console.log('Clicked', e)
-}, { capture: true })
-
-// Cleanup
-dispose()
-dispose2()
 ```
 
 ### `addInterval(cb, ms)`
@@ -113,13 +124,9 @@ Async version of `addInterval`. Waits for the callback to complete before schedu
 ```typescript
 import { addIntervalAsync } from 'jrx'
 
-const dispose = addIntervalAsync(async (disposer) => {
+const dispose = addIntervalAsync(async () => {
   // Called immediately, then 5000ms after each completion
   await fetchData()
-
-  // Check if disposed during async operation
-  if (disposer.signal.aborted) return
-
   processData()
 }, 5000)
 
@@ -163,35 +170,6 @@ const dispose = addRequestAnimationFrameLoop((now) => {
 })
 
 // Stop the loop
-dispose()
-```
-
-### `addSubs(subs, cb, options?)`
-
-Manages multiple subscriptions with a single callback.
-
-```typescript
-import { addSubs } from 'jrx'
-
-const sub1 = (listener) => {
-  eventEmitter.on('event1', listener)
-  return () => eventEmitter.off('event1', listener)
-}
-
-const sub2 = (listener) => {
-  eventEmitter.on('event2', listener)
-  return () => eventEmitter.off('event2', listener)
-}
-
-const dispose = addSubs([sub1, sub2], () => {
-  console.log('Any event fired')
-
-  // Optional: return cleanup function
-  return () => {
-    console.log('Cleanup')
-  }
-}, { now: true }) // Call immediately with now: true
-
 dispose()
 ```
 
@@ -255,9 +233,9 @@ a = 10
 console.log(value2.value) // Recomputed: 12
 ```
 
-### `retry(cb, options?)`
+### `retry(cb, backoffSec?)`
 
-Retries an async operation with exponential backoff on failure.
+Retries an operation with exponential backoff on failure. Returns `Disposable & Promise<T>`.
 
 **Default backoff:** `[5, 5, 10, 10, 20, 20, 40, 40, 60, -1]` seconds (where `-1` means retry forever with 60s delay)
 
@@ -265,123 +243,61 @@ Retries an async operation with exponential backoff on failure.
 import {retry} from 'jrx'
 
 // Basic usage - retries with default backoff
-const result = await retry(async (disposer, { resetBackoff }) => {
-  const response = await fetch('/api/data')
-  if (!response.ok) throw new Error('Failed to fetch')
-  return response.json()
+const result = await retry(({resetBackoff}) => {
+  const promise = fetch('/api/data').then((r) => r.json())
+  return Object.assign(promise, {[Symbol.dispose]() {}})
 })
 
 // Custom backoff schedule (in seconds)
 await retry(
-  async (disposer, { resetBackoff }) => {
-    return await fetchData()
+  () => {
+    const promise = fetchData()
+    return Object.assign(promise, {[Symbol.dispose]() {}})
   },
-  {
-    backoffSec: [1, 2, 5, 10, -1] // -1 means retry forever with last delay
-  }
+  [1, 2, 5, 10, -1], // -1 means retry forever with last delay
 )
 
-// With disposer for cancellation
-import { makeDisposer } from 'jdisposer'
-
-const disposer = makeDisposer()
-
-const data = await retry(
-  async (loopDisposer, { resetBackoff }) => {
-    // Check if aborted
-    if (loopDisposer.signal.aborted) return
-
-    const result = await fetchData()
-
-    // Reset backoff on successful partial progress
-    if (result.isPartialSuccess) {
-      resetBackoff()
-    }
-
-    return result
+// Cancellation via Disposable
+const r = retry(
+  ({resetBackoff}) => {
+    const promise = fetchData()
+    return Object.assign(promise, {[Symbol.dispose]() { /* cancel */ }})
   },
-  {
-    disposer,
-    backoffSec: [5, 10, 20, 40, -1]
-  }
+  [5, 10, 20, 40, -1],
 )
 
 // Cancel the retry loop
-disposer.dispose()
+r[Symbol.dispose]()
 
 // Returns undefined when disposed
-console.log(data) // T | undefined
+const data = await r // undefined
 ```
 
-**Options:**
-- `backoffSec`: Array of retry delays in seconds. Use `-1` for infinite retries with the last delay.
-  - Default: `[5, 5, 10, 10, 20, 20, 40, 40, 60, -1]`
-- `disposer`: Optional disposer for cancellation. When provided, the return type is `T | undefined`. Otherwise, the return type is `T`.
-
-**Callback parameters:**
-- `disposer`: A disposer for the current retry attempt. Check `disposer.signal.aborted` to handle cancellation
-- `info.resetBackoff()`: Call this to reset the backoff counter to the beginning (useful when making partial progress)
-
-### `addRetry(cb, options?)`
-
-Fire-and-forget version of `retry`. Starts the retry loop in the background and returns a dispose function to cancel it.
-
-```typescript
-import {addRetry} from 'jrx'
-
-// Start a retry loop in the background
-const dispose = addRetry(async (disposer, { resetBackoff }) => {
-  const response = await fetch('/api/data')
-  if (!response.ok) throw new Error('Failed')
-  processData(await response.json())
-})
-
-// Cancel the retry loop
-dispose()
-
-// With custom backoff
-const dispose2 = addRetry(
-  async (disposer) => {
-    await connectWebSocket()
-  },
-  { backoffSec: [1, 2, 5, -1] }
-)
-
-dispose2()
-```
-
-**Options:**
-- `backoffSec`: Array of retry delays in seconds (same as `retry`)
+**Parameters:**
+- `cb`: Callback that returns `Disposable & (T | Promise<T>)`. Receives `{ resetBackoff() }` to reset the backoff counter.
+- `backoffSec`: Array of retry delays in seconds. Use `-1` for infinite retries with the last delay. Default: `[5, 5, 10, 10, 20, 20, 40, 40, 60, -1]`
 
 ## Cleanup Pattern
 
-All functions return disposer functions that clean up resources:
+All effect functions return a dispose function that stops the effect and runs any pending cleanup:
 
 ```typescript
 import {addInterval, addTimeout, addRequestAnimationFrame} from 'jrx'
-import {makeDisposer} from 'jdisposer'
 
-const disposer = makeDisposer()
+// Each function returns a dispose function
+const disposeInterval = addInterval(() => console.log('tick'), 1000)
+const disposeTimeout = addTimeout(() => console.log('timeout'), 5000)
+const disposeRaf = addRequestAnimationFrame((now) => render(now))
 
-// Collect disposers
-disposer.add(addInterval(() => console.log('tick'), 1000))
-disposer.add(addTimeout(() => console.log('timeout'), 5000))
-disposer.add(addRequestAnimationFrameLoop((now) => render(now)))
-
-// Cleanup all at once
-disposer.dispose()
+// Call the dispose function to stop the effect
+disposeInterval()
+disposeTimeout()
+disposeRaf()
 ```
 
 ## TypeScript
 
-This library is written in TypeScript and includes type definitions.
-
-```typescript
-import type { Disposer } from 'jdisposer'
-
-// All disposer functions follow this pattern
-type DisposerFunction = () => void
-```
+This library is written in TypeScript and uses the [Explicit Resource Management](https://github.com/tc39/proposal-explicit-resource-management) types (`Disposable`, `DisposableStack`, `AsyncDisposableStack`).
 
 ## License
 

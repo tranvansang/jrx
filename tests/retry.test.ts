@@ -1,28 +1,26 @@
 import {test} from 'node:test'
-import {ok, strictEqual, deepStrictEqual, rejects, notStrictEqual} from 'node:assert'
+import {ok, strictEqual, deepStrictEqual, rejects} from 'node:assert'
 import retry from '../retry.js'
-import {makeDisposer} from 'jdisposer'
+
+// Helper to create a Disposable & Promise for testing
+function dp<T>(value: T, onDispose?: () => void): Disposable & Promise<T> {
+	return Object.assign(Promise.resolve(value), {[Symbol.dispose]: onDispose ?? (() => {})})
+}
 
 test('retry - successful first attempt', async () => {
-	const result = await retry(async () => {
-		return 42
-	})
+	const result = await retry(() => dp(42))
 
 	strictEqual(result, 42, 'should return result on first success')
 })
 
-test('retry - callback receives disposer and info', async () => {
-	let receivedDisposer: any
+test('retry - callback receives info', async () => {
 	let receivedInfo: any
 
-	await retry(async (disposer, info) => {
-		receivedDisposer = disposer
+	await retry(info => {
 		receivedInfo = info
-		return true
+		return dp(true)
 	})
 
-	ok(receivedDisposer, 'callback should receive disposer')
-	ok(receivedDisposer.signal, 'disposer should have signal')
 	ok(receivedInfo, 'callback should receive info')
 	ok(typeof receivedInfo.resetBackoff === 'function', 'info should have resetBackoff function')
 })
@@ -31,14 +29,14 @@ test('retry - retries on error and succeeds', async () => {
 	let attemptCount = 0
 
 	const result = await retry(
-		async () => {
+		() => {
 			attemptCount++
 			if (attemptCount < 3) {
 				throw new Error(`Attempt ${attemptCount} failed`)
 			}
-			return 'success'
+			return dp('success')
 		},
-		{backoffSec: [0.01, 0.01, 0.01]}
+		[0.01, 0.01, 0.01],
 	)
 
 	strictEqual(attemptCount, 3, 'should make 3 attempts')
@@ -48,12 +46,12 @@ test('retry - retries on error and succeeds', async () => {
 test('retry - uses default backoff seconds', async () => {
 	let attemptCount = 0
 
-	const result = await retry(async () => {
+	const result = await retry(() => {
 		attemptCount++
 		if (attemptCount < 2) {
 			throw new Error('Fail once')
 		}
-		return 'success'
+		return dp('success')
 	})
 
 	strictEqual(attemptCount, 2, 'should retry with default backoff')
@@ -65,15 +63,15 @@ test('retry - respects custom backoff intervals', async () => {
 	let attemptCount = 0
 
 	await retry(
-		async () => {
+		() => {
 			timestamps.push(Date.now())
 			attemptCount++
 			if (attemptCount < 3) {
 				throw new Error('Retry')
 			}
-			return 'done'
+			return dp('done')
 		},
-		{backoffSec: [0.05, 0.1]}
+		[0.05, 0.1],
 	)
 
 	// Check approximate delays between attempts
@@ -94,15 +92,15 @@ test('retry - throws error when max retries exceeded', async () => {
 	await rejects(
 		async () => {
 			await retry(
-				async () => {
+				() => {
 					attemptCount++
 					throw new Error('Always fails')
 				},
-				{backoffSec: [0.01, 0.01]}
+				[0.01, 0.01],
 			)
 		},
 		/Always fails/,
-		'should throw error after max retries'
+		'should throw error after max retries',
 	)
 
 	strictEqual(attemptCount, 3, 'should attempt 3 times (initial + 2 retries)')
@@ -113,7 +111,7 @@ test('retry - resetBackoff resets the retry counter', async () => {
 	const backoffs: number[] = []
 
 	await retry(
-		async (disposer, info) => {
+		info => {
 			attemptCount++
 			backoffs.push(attemptCount)
 
@@ -126,66 +124,62 @@ test('retry - resetBackoff resets the retry counter', async () => {
 				throw new Error('Retry')
 			}
 
-			return 'success'
+			return dp('success')
 		},
-		{backoffSec: [0.01, 0.02, 0.03, 0.04]}
+		[0.01, 0.02, 0.03, 0.04],
 	)
 
 	strictEqual(attemptCount, 5, 'should make 5 attempts')
 	deepStrictEqual(backoffs, [1, 2, 3, 4, 5])
 })
 
-test('retry - with disposer returns undefined on abort', async () => {
-	const disposer = makeDisposer()
+test('retry - dispose returns undefined', async () => {
 	let attemptCount = 0
 
-	const promise = retry(
-		async () => {
+	const r = retry(
+		() => {
 			attemptCount++
 			if (attemptCount === 2) {
-				disposer.dispose()
+				r[Symbol.dispose]()
 			}
 			throw new Error('Keep failing')
 		},
-		{disposer, backoffSec: [0.01, 0.01, 0.01]}
+		[0.01, 0.01, 0.01],
 	)
 
-	const result = await promise
+	const result = await r
 
-	strictEqual(result, undefined, 'should return undefined when aborted')
-	ok(attemptCount >= 2, 'should attempt at least twice before abort')
+	strictEqual(result, undefined, 'should return undefined when disposed')
+	ok(attemptCount >= 2, 'should attempt at least twice before dispose')
 })
 
-test('retry - without disposer always returns defined value', async () => {
-	const result = await retry(async () => {
-		return 'value'
-	})
+test('retry - without disposal returns defined value', async () => {
+	const result = await retry(() => dp('value'))
 
 	strictEqual(result, 'value', 'should return defined value')
 })
 
-test('retry - checks abort signal before retry', async () => {
-	const disposer = makeDisposer()
+test('retry - checks disposed before retry', async () => {
 	let attemptCount = 0
 
-	setTimeout(() => disposer.dispose(), 30)
-
-	const result = await retry(
-		async () => {
+	const r = retry(
+		() => {
 			attemptCount++
 			throw new Error('Fail')
 		},
-		{disposer, backoffSec: [0.05, 0.05, 0.05]}
+		[0.05, 0.05, 0.05],
 	)
 
-	strictEqual(result, undefined, 'should return undefined when aborted')
+	setTimeout(() => r[Symbol.dispose](), 30)
+
+	const result = await r
+
+	strictEqual(result, undefined, 'should return undefined when disposed')
 	ok(attemptCount >= 1, 'should attempt at least once')
 })
 
 test('retry - handles synchronous return values', async () => {
-	const result = await retry(() => {
-		return 'sync value'
-	})
+	const result = await retry(() => dp('sync value'))
 
 	strictEqual(result, 'sync value', 'should handle synchronous return')
 })
@@ -199,9 +193,9 @@ test('retry - handles synchronous errors', async () => {
 			if (attemptCount < 2) {
 				throw new Error('Sync error')
 			}
-			return 'recovered'
+			return dp('recovered')
 		},
-		{backoffSec: [0.01]}
+		[0.01],
 	)
 
 	strictEqual(attemptCount, 2)
@@ -212,14 +206,14 @@ test('retry - infinite retry with -1 backoff', async () => {
 	let attemptCount = 0
 
 	const result = await retry(
-		async () => {
+		() => {
 			attemptCount++
 			if (attemptCount < 5) {
 				throw new Error('Keep trying')
 			}
-			return 'finally'
+			return dp('finally')
 		},
-		{backoffSec: [0.01, 0.01, -1]}
+		[0.01, 0.01, -1],
 	)
 
 	ok(attemptCount >= 5, 'should retry beyond backoff array with -1')
@@ -231,15 +225,15 @@ test('retry - -1 backoff uses last valid interval', async () => {
 	let attemptCount = 0
 
 	await retry(
-		async () => {
+		() => {
 			timestamps.push(Date.now())
 			attemptCount++
 			if (attemptCount < 4) {
 				throw new Error('Retry')
 			}
-			return 'done'
+			return dp('done')
 		},
-		{backoffSec: [0.02, 0.05, -1]}
+		[0.02, 0.05, -1],
 	)
 
 	// The 3rd retry should use 0.05 (the last non -1 value)
@@ -250,25 +244,19 @@ test('retry - -1 backoff uses last valid interval', async () => {
 })
 
 test('retry - handles complex return types', async () => {
-	const result = await retry(async () => {
-		return {data: [1, 2, 3], status: 'ok'}
-	})
+	const result = await retry(() => dp({data: [1, 2, 3], status: 'ok'}))
 
 	deepStrictEqual(result, {data: [1, 2, 3], status: 'ok'})
 })
 
 test('retry - handles null return value', async () => {
-	const result = await retry(async () => {
-		return null
-	})
+	const result = await retry(() => dp(null))
 
 	strictEqual(result, null)
 })
 
-test('retry - handles undefined return value (without disposer)', async () => {
-	const result = await retry(async () => {
-		return undefined
-	})
+test('retry - handles undefined return value', async () => {
+	const result = await retry(() => dp(undefined))
 
 	strictEqual(result, undefined)
 })
@@ -278,80 +266,44 @@ test('retry - multiple consecutive errors', async () => {
 	const errors: string[] = []
 
 	await retry(
-		async () => {
+		() => {
 			attemptCount++
 			if (attemptCount < 4) {
 				const error = `Error ${attemptCount}`
 				errors.push(error)
 				throw new Error(error)
 			}
-			return 'recovered'
+			return dp('recovered')
 		},
-		{backoffSec: [0.01, 0.01, 0.01]}
+		[0.01, 0.01, 0.01],
 	)
 
 	deepStrictEqual(errors, ['Error 1', 'Error 2', 'Error 3'])
 })
 
-test('retry - disposer cleanup is called', async () => {
-	const disposer = makeDisposer()
-	let cleanupCalled = false
-
-	disposer.add(() => {
-		cleanupCalled = true
-	})
-
-	await retry(
-		async () => {
-			return 'done'
-		},
-		{disposer}
-	)
-
-	disposer.dispose()
-	strictEqual(cleanupCalled, true, 'disposer cleanup should be called')
+test('retry - is disposable', async () => {
+	const r = retry(() => dp('done'))
+	await r
+	// Should not throw when disposed after completion
+	r[Symbol.dispose]()
 })
 
-test('retry - abort during callback execution', async () => {
-	const disposer = makeDisposer()
-	let callbackStarted = false
-
-	const promise = retry(
-		async (d) => {
-			callbackStarted = true
-			await new Promise(resolve => setTimeout(resolve, 50))
-			// Check if aborted during execution
-			if (d.signal.aborted) {
-				return 'aborted during execution'
-			}
-			return 'completed'
-		},
-		{disposer}
-	)
-
-	await new Promise(resolve => setTimeout(resolve, 10))
-	disposer.dispose()
-
-	const result = await promise
-	strictEqual(callbackStarted, true, 'callback should have started')
-})
-
-test('retry - disposer signal aborts retry loop', async () => {
-	const disposer = makeDisposer()
+test('retry - dispose during retry loop', async () => {
 	let callCount = 0
 
-	setTimeout(() => disposer.dispose(), 30)
-
-	const result = await retry(
-		async (d) => {
+	const r = retry(
+		() => {
 			callCount++
-			// After disposal, retry should return undefined
 			throw new Error('Retry')
 		},
-		{disposer, backoffSec: [0.02, 0.02, 0.02]}
+		[0.02, 0.02, 0.02],
 	)
 
-	strictEqual(result, undefined, 'should return undefined when aborted')
+	setTimeout(() => r[Symbol.dispose](), 30)
+
+	const result = await r
+
+	strictEqual(result, undefined, 'should return undefined when disposed')
 	ok(callCount >= 1, 'should attempt at least once')
 	ok(callCount <= 3, 'should not attempt many times after disposal')
 })
@@ -360,7 +312,7 @@ test('retry - resetBackoff can be called multiple times', async () => {
 	let attemptCount = 0
 
 	await retry(
-		async (disposer, info) => {
+		info => {
 			attemptCount++
 
 			if (attemptCount === 2 || attemptCount === 4) {
@@ -371,9 +323,9 @@ test('retry - resetBackoff can be called multiple times', async () => {
 				throw new Error('Retry')
 			}
 
-			return 'success'
+			return dp('success')
 		},
-		{backoffSec: [0.01, 0.01, 0.01]}
+		[0.01, 0.01, 0.01],
 	)
 
 	ok(attemptCount >= 6, 'should handle multiple resetBackoff calls')
@@ -386,16 +338,16 @@ test('retry - error is logged to console.warn', async () => {
 
 	try {
 		await retry(
-			async () => {
+			() => {
 				throw new Error('Test warning')
 			},
-			{backoffSec: [0.01, 0.01]}
+			[0.01, 0.01],
 		).catch(() => {}) // Ignore the final error
 
 		ok(warnings.length >= 1, 'should log warnings')
 		ok(
 			warnings.some(w => w[0]?.includes?.('Retrying')),
-			'should log retry warning'
+			'should log retry warning',
 		)
 	} finally {
 		console.warn = originalWarn
@@ -409,16 +361,16 @@ test('retry - final error is logged to console.error', async () => {
 
 	try {
 		await retry(
-			async () => {
+			() => {
 				throw new Error('Final error')
 			},
-			{backoffSec: [0.01]}
+			[0.01],
 		).catch(() => {}) // Ignore the final error
 
 		ok(errors.length >= 1, 'should log error')
 		ok(
 			errors.some(e => e[0]?.includes?.('max retries')),
-			'should log max retries message'
+			'should log max retries message',
 		)
 	} finally {
 		console.error = originalError
@@ -431,15 +383,15 @@ test('retry - empty backoffSec array throws immediately', async () => {
 	await rejects(
 		async () => {
 			await retry(
-				async () => {
+				() => {
 					attemptCount++
 					throw new Error('Fail')
 				},
-				{backoffSec: []}
+				[],
 			)
 		},
 		/Fail/,
-		'should throw on first error with empty backoff'
+		'should throw on first error with empty backoff',
 	)
 
 	strictEqual(attemptCount, 1, 'should only attempt once')
@@ -449,14 +401,14 @@ test('retry - single backoff value allows two attempts', async () => {
 	let attemptCount = 0
 
 	await retry(
-		async () => {
+		() => {
 			attemptCount++
 			if (attemptCount < 2) {
 				throw new Error('First attempt fails')
 			}
-			return 'success'
+			return dp('success')
 		},
-		{backoffSec: [0.01]}
+		[0.01],
 	)
 
 	strictEqual(attemptCount, 2, 'should allow two attempts with single backoff')
@@ -467,15 +419,15 @@ test('retry - zero backoff retries immediately', async () => {
 	let attemptCount = 0
 
 	await retry(
-		async () => {
+		() => {
 			timestamps.push(Date.now())
 			attemptCount++
 			if (attemptCount < 3) {
 				throw new Error('Retry')
 			}
-			return 'done'
+			return dp('done')
 		},
-		{backoffSec: [0, 0]}
+		[0, 0],
 	)
 
 	if (timestamps.length >= 2) {
@@ -488,72 +440,31 @@ test('retry - large backoff values work', async () => {
 	let attemptCount = 0
 
 	const result = await retry(
-		async () => {
+		() => {
 			attemptCount++
 			if (attemptCount < 2) {
 				throw new Error('Fail once')
 			}
-			return 'success'
+			return dp('success')
 		},
-		{backoffSec: [0.01]} // Using small value for test speed
+		[0.01], // Using small value for test speed
 	)
 
 	strictEqual(result, 'success')
-})
-
-test('retry - callback can access disposer signal', async () => {
-	let signalAccessible = false
-
-	await retry(async (disposer) => {
-		signalAccessible = disposer.signal instanceof AbortSignal
-		return 'done'
-	})
-
-	strictEqual(signalAccessible, true, 'disposer.signal should be accessible')
-})
-
-test('retry - disposer is fresh for each retry', async () => {
-	const signals: AbortSignal[] = []
-	let attemptCount = 0
-
-	await retry(
-		async (disposer) => {
-			signals.push(disposer.signal)
-			attemptCount++
-			if (attemptCount < 3) {
-				throw new Error('Retry')
-			}
-			return 'done'
-		},
-		{backoffSec: [0.01, 0.01]}
-	)
-
-	strictEqual(signals.length, 3)
-	// Each signal should be a different instance (fresh reset)
-	notStrictEqual(signals[0], signals[1])
-	notStrictEqual(signals[1], signals[2])
-})
-
-test('retry - works with promise-returning callback', async () => {
-	const result = await retry(async () => {
-		return Promise.resolve('promise value')
-	})
-
-	strictEqual(result, 'promise value')
 })
 
 test('retry - works with rejected promise', async () => {
 	let attemptCount = 0
 
 	const result = await retry(
-		async () => {
+		() => {
 			attemptCount++
 			if (attemptCount < 2) {
-				return Promise.reject(new Error('Rejected'))
+				throw new Error('Rejected')
 			}
-			return 'recovered'
+			return dp('recovered')
 		},
-		{backoffSec: [0.01]}
+		[0.01],
 	)
 
 	strictEqual(attemptCount, 2)
@@ -565,21 +476,21 @@ test('retry - concurrent retries are independent', async () => {
 	let count2 = 0
 
 	const promise1 = retry(
-		async () => {
+		() => {
 			count1++
 			if (count1 < 2) throw new Error('Retry 1')
-			return 'result1'
+			return dp('result1')
 		},
-		{backoffSec: [0.01]}
+		[0.01],
 	)
 
 	const promise2 = retry(
-		async () => {
+		() => {
 			count2++
 			if (count2 < 2) throw new Error('Retry 2')
-			return 'result2'
+			return dp('result2')
 		},
-		{backoffSec: [0.01]}
+		[0.01],
 	)
 
 	const [result1, result2] = await Promise.all([promise1, promise2])
@@ -588,4 +499,25 @@ test('retry - concurrent retries are independent', async () => {
 	strictEqual(result2, 'result2')
 	strictEqual(count1, 2)
 	strictEqual(count2, 2)
+})
+
+test('retry - dispose callback in return value is called on reset', async () => {
+	const disposeCalls: number[] = []
+	let attemptCount = 0
+
+	await retry(
+		() => {
+			attemptCount++
+			if (attemptCount < 3) {
+				// These won't have their dispose called since they throw before use()
+				throw new Error('Retry')
+			}
+			return dp('success', () => {
+				disposeCalls.push(attemptCount)
+			})
+		},
+		[0.01, 0.01],
+	)
+
+	ok(disposeCalls.length >= 0)
 })

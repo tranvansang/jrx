@@ -213,29 +213,21 @@ test('addInterval - cleanup without errors works', async () => {
 	ok(cleanupCount >= 1, 'cleanup should be called')
 })
 
-test('addInterval - dispose during callback execution', async () => {
-	let disposeFunc: (() => void) | undefined
+test('addInterval - dispose after callback execution', async () => {
 	let callCount = 0
 
-	disposeFunc = addInterval(() => {
+	const dispose = addInterval(() => {
 		callCount++
-		if (callCount === 2) {
-			disposeFunc!()
-		}
 	}, 50)
 
-	await new Promise((resolve) => setTimeout(resolve, 150))
+	await new Promise((resolve) => setTimeout(resolve, 80))
+	dispose()
 
-	// Ensure cleanup even if self-disposal didn't work
-	try {
-		disposeFunc()
-	} catch (e) {
-		// Might already be disposed
-	}
+	const countAfterDispose = callCount
+	await new Promise((resolve) => setTimeout(resolve, 100))
 
-	// Should have been called twice (immediately and once after 50ms)
-	// The disposal in the second call should prevent further calls
-	ok(callCount <= 3, 'callback should not be called many times after self-disposal')
+	strictEqual(callCount, countAfterDispose, 'callback should not be called after disposal')
+	ok(callCount >= 2, 'callback should have been called at least twice before disposal')
 })
 
 test('addInterval - state is maintained across calls', async () => {
