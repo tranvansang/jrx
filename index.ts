@@ -25,7 +25,7 @@ export function makeRenderLoop() {
 
 	return {
 		loop(this: void, time: DOMHighResTimeStamp) {
-			reset().adopt(loop_?.(time), v => v?.())
+			reset().defer(loop_?.(time))
 		},
 		setLoop(this: void, loop: (time: DOMHighResTimeStamp) => undefined | (() => void)) {
 			loop_ = loop
@@ -47,7 +47,7 @@ export function addInterval(cb: () => undefined | (() => any), ms: number) {
 	}
 
 	function wrapper() {
-		reset().adopt(cb(), v => v?.())
+		reset().defer(cb)
 		timeout = setTimeout(wrapper, ms)
 	}
 }
@@ -75,7 +75,7 @@ export function addRequestAnimationFrame(cb: (now: DOMHighResTimeStamp) => undef
 	const stack = new DisposableStack()
 	const raf = requestAnimationFrame(now => {
 		if (stack.disposed) return
-		stack.adopt(cb(now), v => v?.())
+		stack.defer(cb(now))
 	})
 	return () => {
 		stack.dispose()
@@ -92,7 +92,7 @@ export function addRequestAnimationFrameLoop(cb: (now: DOMHighResTimeStamp) => u
 	}
 
 	function wrapper(now: DOMHighResTimeStamp) {
-		reset().adopt(cb(now), v => v?.())
+		reset().defer(cb(now))
 		raf = requestAnimationFrame(wrapper)
 	}
 }
@@ -114,13 +114,13 @@ export function addTransition(cb: (progress: number) => undefined | (() => void)
 	function wrapper(now: DOMHighResTimeStamp) {
 		if (start === undefined) {
 			start = now
-			reset().adopt(cb(0), v => v?.())
+			reset().defer(cb(0))
 			raf = requestAnimationFrame(wrapper)
 		} else {
 			const progress = (now - start) / durationMs
-			if (progress >= 1) reset().adopt(cb(1), v => v?.())
+			if (progress >= 1) reset().defer(cb(1))
 			else {
-				reset().adopt(cb(progress), v => v?.())
+				reset().defer(cb(progress))
 				raf = requestAnimationFrame(wrapper)
 			}
 		}
