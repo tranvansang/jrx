@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import {ok, strictEqual, doesNotThrow, deepStrictEqual} from 'node:assert'
-import {addRequestAnimationFrameLoop} from '../index.js'
+import {makeAnimationFrameLoop} from '../index.js'
 
 // Mock requestAnimationFrame and cancelAnimationFrame for Node.js environment
 function setupRAFMocks() {
@@ -16,7 +16,6 @@ function setupRAFMocks() {
 		callbacks.set(id, cb)
 		return id
 	}
-
 	;(globalThis as any).cancelAnimationFrame = (id: number) => {
 		callbacks.delete(id)
 	}
@@ -39,24 +38,24 @@ function setupRAFMocks() {
 	return {tick, cleanup, getCallbackCount: () => callbacks.size, getCurrentTime: () => currentTime}
 }
 
-test('addRequestAnimationFrameLoop - returns a disposer function', () => {
+test('makeAnimationFrameLoop - returns a disposer function', () => {
 	const mocks = setupRAFMocks()
 	try {
-		const dispose = addRequestAnimationFrameLoop(() => {})
-		ok(typeof dispose === 'function', 'addRequestAnimationFrameLoop should return a disposer function')
+		const dispose = makeAnimationFrameLoop(() => {})
+		ok(typeof dispose === 'function', 'makeAnimationFrameLoop should return a disposer function')
 		dispose()
 	} finally {
 		mocks.cleanup()
 	}
 })
 
-test('addRequestAnimationFrameLoop - callback is called on first frame', () => {
+test('makeAnimationFrameLoop - callback is called on first frame', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let called = false
 		let receivedTime: DOMHighResTimeStamp | undefined
 
-		const dispose = addRequestAnimationFrameLoop((now) => {
+		const dispose = makeAnimationFrameLoop(now => {
 			called = true
 			receivedTime = now
 		})
@@ -71,12 +70,12 @@ test('addRequestAnimationFrameLoop - callback is called on first frame', () => {
 	}
 })
 
-test('addRequestAnimationFrameLoop - callback is called repeatedly', () => {
+test('makeAnimationFrameLoop - callback is called repeatedly', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const calls: DOMHighResTimeStamp[] = []
 
-		const dispose = addRequestAnimationFrameLoop((now) => {
+		const dispose = makeAnimationFrameLoop(now => {
 			calls.push(now)
 		})
 
@@ -91,12 +90,12 @@ test('addRequestAnimationFrameLoop - callback is called repeatedly', () => {
 	}
 })
 
-test('addRequestAnimationFrameLoop - callback receives increasing timestamps', () => {
+test('makeAnimationFrameLoop - callback receives increasing timestamps', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const times: DOMHighResTimeStamp[] = []
 
-		const dispose = addRequestAnimationFrameLoop((now) => {
+		const dispose = makeAnimationFrameLoop(now => {
 			times.push(now)
 		})
 
@@ -113,12 +112,12 @@ test('addRequestAnimationFrameLoop - callback receives increasing timestamps', (
 	}
 })
 
-test('addRequestAnimationFrameLoop - disposer stops the animation frame', () => {
+test('makeAnimationFrameLoop - disposer stops the animation frame', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let callCount = 0
 
-		const dispose = addRequestAnimationFrameLoop(() => {
+		const dispose = makeAnimationFrameLoop(() => {
 			callCount++
 		})
 
@@ -130,24 +129,22 @@ test('addRequestAnimationFrameLoop - disposer stops the animation frame', () => 
 		mocks.tick()
 		mocks.tick()
 
-		strictEqual(
-			callCount,
-			countAfterDispose,
-			'callback should not be called after disposal'
-		)
+		strictEqual(callCount, countAfterDispose, 'callback should not be called after disposal')
 	} finally {
 		mocks.cleanup()
 	}
 })
 
-test('addRequestAnimationFrameLoop - callback can return a cleanup function', () => {
+test('makeAnimationFrameLoop - callback can return a cleanup disposable', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let cleanupCount = 0
 
-		const dispose = addRequestAnimationFrameLoop(() => {
-			return () => {
-				cleanupCount++
+		const dispose = makeAnimationFrameLoop(() => {
+			return {
+				[Symbol.dispose]() {
+					cleanupCount++
+				},
 			}
 		})
 
@@ -167,15 +164,17 @@ test('addRequestAnimationFrameLoop - callback can return a cleanup function', ()
 	}
 })
 
-test('addRequestAnimationFrameLoop - cleanup is called before each callback execution', () => {
+test('makeAnimationFrameLoop - cleanup is called before each callback execution', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const events: string[] = []
 
-		const dispose = addRequestAnimationFrameLoop(() => {
+		const dispose = makeAnimationFrameLoop(() => {
 			events.push('callback')
-			return () => {
-				events.push('cleanup')
+			return {
+				[Symbol.dispose]() {
+					events.push('cleanup')
+				},
 			}
 		})
 
@@ -188,21 +187,23 @@ test('addRequestAnimationFrameLoop - cleanup is called before each callback exec
 		deepStrictEqual(
 			events,
 			['callback', 'cleanup', 'callback', 'cleanup', 'callback', 'cleanup'],
-			'cleanup should be called before each callback except the first'
+			'cleanup should be called before each callback except the first',
 		)
 	} finally {
 		mocks.cleanup()
 	}
 })
 
-test('addRequestAnimationFrameLoop - disposer calls cleanup', () => {
+test('makeAnimationFrameLoop - disposer calls cleanup', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let cleanupCalled = false
 
-		const dispose = addRequestAnimationFrameLoop(() => {
-			return () => {
-				cleanupCalled = true
+		const dispose = makeAnimationFrameLoop(() => {
+			return {
+				[Symbol.dispose]() {
+					cleanupCalled = true
+				},
 			}
 		})
 
@@ -215,10 +216,10 @@ test('addRequestAnimationFrameLoop - disposer calls cleanup', () => {
 	}
 })
 
-test('addRequestAnimationFrameLoop - multiple disposals are safe', () => {
+test('makeAnimationFrameLoop - multiple disposals are safe', () => {
 	const mocks = setupRAFMocks()
 	try {
-		const dispose = addRequestAnimationFrameLoop(() => {})
+		const dispose = makeAnimationFrameLoop(() => {})
 
 		mocks.tick()
 
@@ -232,12 +233,12 @@ test('addRequestAnimationFrameLoop - multiple disposals are safe', () => {
 	}
 })
 
-test('addRequestAnimationFrameLoop - callback returning undefined is handled', () => {
+test('makeAnimationFrameLoop - callback returning undefined is handled', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let callCount = 0
 
-		const dispose = addRequestAnimationFrameLoop(() => {
+		const dispose = makeAnimationFrameLoop(() => {
 			callCount++
 			return undefined
 		})
@@ -253,12 +254,12 @@ test('addRequestAnimationFrameLoop - callback returning undefined is handled', (
 	}
 })
 
-test('addRequestAnimationFrameLoop - callback without errors works', () => {
+test('makeAnimationFrameLoop - callback without errors works', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let callCount = 0
 
-		const dispose = addRequestAnimationFrameLoop(() => {
+		const dispose = makeAnimationFrameLoop(() => {
 			callCount++
 			// Note: errors in callbacks are NOT caught
 		})
@@ -274,17 +275,19 @@ test('addRequestAnimationFrameLoop - callback without errors works', () => {
 	}
 })
 
-test('addRequestAnimationFrameLoop - cleanup without errors works', () => {
+test('makeAnimationFrameLoop - cleanup without errors works', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let callCount = 0
 		let cleanupCount = 0
 
-		const dispose = addRequestAnimationFrameLoop(() => {
+		const dispose = makeAnimationFrameLoop(() => {
 			callCount++
-			return () => {
-				cleanupCount++
-				// Note: errors in cleanup are NOT caught
+			return {
+				[Symbol.dispose]() {
+					cleanupCount++
+					// Note: errors in cleanup are NOT caught
+				},
 			}
 		})
 
@@ -300,12 +303,12 @@ test('addRequestAnimationFrameLoop - cleanup without errors works', () => {
 	}
 })
 
-test('addRequestAnimationFrameLoop - dispose stops further frames', () => {
+test('makeAnimationFrameLoop - dispose stops further frames', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let callCount = 0
 
-		const dispose = addRequestAnimationFrameLoop(() => {
+		const dispose = makeAnimationFrameLoop(() => {
 			callCount++
 		})
 
@@ -323,13 +326,13 @@ test('addRequestAnimationFrameLoop - dispose stops further frames', () => {
 	}
 })
 
-test('addRequestAnimationFrameLoop - state is maintained across frames', () => {
+test('makeAnimationFrameLoop - state is maintained across frames', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const values: number[] = []
 		let counter = 0
 
-		const dispose = addRequestAnimationFrameLoop(() => {
+		const dispose = makeAnimationFrameLoop(() => {
 			counter++
 			values.push(counter)
 		})
@@ -345,10 +348,10 @@ test('addRequestAnimationFrameLoop - state is maintained across frames', () => {
 	}
 })
 
-test('addRequestAnimationFrameLoop - cancellation is called with correct id', () => {
+test('makeAnimationFrameLoop - cancellation is called with correct id', () => {
 	const mocks = setupRAFMocks()
 	try {
-		const dispose = addRequestAnimationFrameLoop(() => {})
+		const dispose = makeAnimationFrameLoop(() => {})
 
 		mocks.tick()
 		const callbackCountBefore = mocks.getCallbackCount()
@@ -361,17 +364,17 @@ test('addRequestAnimationFrameLoop - cancellation is called with correct id', ()
 	}
 })
 
-test('addRequestAnimationFrameLoop - multiple instances work independently', () => {
+test('makeAnimationFrameLoop - multiple instances work independently', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let count1 = 0
 		let count2 = 0
 
-		const dispose1 = addRequestAnimationFrameLoop(() => {
+		const dispose1 = makeAnimationFrameLoop(() => {
 			count1++
 		})
 
-		const dispose2 = addRequestAnimationFrameLoop(() => {
+		const dispose2 = makeAnimationFrameLoop(() => {
 			count2++
 		})
 
@@ -391,12 +394,12 @@ test('addRequestAnimationFrameLoop - multiple instances work independently', () 
 	}
 })
 
-test('addRequestAnimationFrameLoop - callback receives accurate timing', () => {
+test('makeAnimationFrameLoop - callback receives accurate timing', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const times: number[] = []
 
-		const dispose = addRequestAnimationFrameLoop((now) => {
+		const dispose = makeAnimationFrameLoop(now => {
 			times.push(now)
 		})
 

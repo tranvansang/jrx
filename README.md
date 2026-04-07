@@ -28,12 +28,12 @@ npm i jrx
 - [`makeReset()`](#makereset) - Create a resettable `DisposableStack`
 - [`makeAsyncReset()`](#makeasyncreset) - Create a resettable `AsyncDisposableStack`
 - [`makeRenderLoop()`](#makerenderloop) - Render loops with automatic cleanup
-- [`addInterval(cb, ms)`](#addintervalcb-ms) - Repeating intervals with cleanup
-- [`addIntervalAsync(cb, ms)`](#addintervalasynccb-ms) - Async intervals with cancellation
-- [`addRequestAnimationFrame(cb)`](#addrequestanimationframecb) - Single animation frame with cleanup
-- [`addRequestAnimationFrameLoop(cb)`](#addrequestanimationframeloopcb) - Animation frame loops
-- [`addTimeout(cb, ms)`](#addtimeoutcb-ms) - Timeouts with cleanup
-- [`addTransition(cb, durationMs)`](#addtransitioncb-durationms) - Progress-based animations
+- [`makeInterval(cb, ms)`](#makeintervalcb-ms) - Repeating intervals with cleanup
+- [`makeIntervalAsync(cb, ms)`](#makeintervalasynccb-ms) - Async intervals with cancellation
+- [`makeAnimationFrame(cb)`](#makeanimationframecb) - Single animation frame with cleanup
+- [`makeAnimationFrameLoop(cb)`](#makeanimationframeloopcb) - Animation frame loops
+- [`makeTimeout(cb, ms)`](#maketimeoutcb-ms) - Timeouts with cleanup
+- [`makeTransition(cb, durationMs)`](#maketransitioncb-durationms) - Progress-based animations
 - [`computed(fn, getDeps?)`](#computedfn-getdeps) - Memoized computed values
 - [`retry(cb, backoffSec?)`](#retrycb-backoffsec) - Retry with exponential backoff
 
@@ -76,13 +76,15 @@ import {makeRenderLoop} from 'jrx'
 
 const {loop, setLoop} = makeRenderLoop()
 
-// Set the loop function
-const dispose = setLoop((time) => {
+// Set the loop function - returns a Disposable
+const handle = setLoop((time) => {
   console.log('Frame time:', time)
 
-  // Optional: return cleanup function
-  return () => {
-    console.log('Cleanup previous frame')
+  // Optional: return a Disposable for cleanup
+  return {
+    [Symbol.dispose]() {
+      console.log('Cleanup previous frame')
+    },
   }
 })
 
@@ -90,41 +92,43 @@ const dispose = setLoop((time) => {
 requestAnimationFrame(loop)
 
 // Cleanup
-dispose()
+handle[Symbol.dispose]()
 ```
 
-### `addInterval(cb, ms)`
+### `makeInterval(cb, ms)`
 
-Creates a repeating interval with cleanup. The callback can optionally return a cleanup function that runs before the next invocation.
+Creates a repeating interval with cleanup. The callback can optionally return a `Disposable` that is disposed before the next invocation. Returns a `Disposable`.
 
 **Note:** The callback fires **immediately** on first call, then waits `ms` milliseconds **after** the previous callback completes. This is not a fixed-rate timer.
 
 ```typescript
-import { addInterval } from 'jrx'
+import {makeInterval} from 'jrx'
 
-const dispose = addInterval(() => {
+const handle = makeInterval(() => {
   console.log('Tick') // Called immediately, then every 1000ms after completion
 
-  // Optional: return cleanup function
-  return () => {
-    console.log('Cleanup')
+  // Optional: return a Disposable for cleanup
+  return {
+    [Symbol.dispose]() {
+      console.log('Cleanup')
+    },
   }
 }, 1000)
 
 // Stop the interval
-dispose()
+handle[Symbol.dispose]()
 ```
 
-### `addIntervalAsync(cb, ms)`
+### `makeIntervalAsync(cb, ms)`
 
-Async version of `addInterval`. Waits for the callback to complete before scheduling the next invocation.
+Async version of `makeInterval`. Waits for the callback to complete before scheduling the next invocation.
 
 **Note:** The callback fires **immediately** on first call, then waits `ms` milliseconds **after** the previous async callback completes.
 
 ```typescript
-import { addIntervalAsync } from 'jrx'
+import {makeIntervalAsync} from 'jrx'
 
-const dispose = addIntervalAsync(async () => {
+const dispose = makeIntervalAsync(async () => {
   // Called immediately, then 5000ms after each completion
   await fetchData()
   processData()
@@ -133,19 +137,21 @@ const dispose = addIntervalAsync(async () => {
 dispose()
 ```
 
-### `addRequestAnimationFrame(cb)`
+### `makeAnimationFrame(cb)`
 
 Executes a callback on the next animation frame with cleanup.
 
 ```typescript
-import { addRequestAnimationFrame } from 'jrx'
+import {makeAnimationFrame} from 'jrx'
 
-const dispose = addRequestAnimationFrame((now) => {
+const dispose = makeAnimationFrame((now) => {
   updateAnimation(now)
 
-  // Optional: return cleanup function
-  return () => {
-    cleanupAnimation()
+  // Optional: return a Disposable for cleanup
+  return {
+    [Symbol.dispose]() {
+      cleanupAnimation()
+    },
   }
 })
 
@@ -153,19 +159,21 @@ const dispose = addRequestAnimationFrame((now) => {
 dispose()
 ```
 
-### `addRequestAnimationFrameLoop(cb)`
+### `makeAnimationFrameLoop(cb)`
 
 Creates a continuous `requestAnimationFrame` loop with cleanup.
 
 ```typescript
-import { addRequestAnimationFrameLoop } from 'jrx'
+import {makeAnimationFrameLoop} from 'jrx'
 
-const dispose = addRequestAnimationFrameLoop((now) => {
+const dispose = makeAnimationFrameLoop((now) => {
   updateAnimation(now)
 
-  // Optional: return cleanup function
-  return () => {
-    cleanupAnimation()
+  // Optional: return a Disposable for cleanup
+  return {
+    [Symbol.dispose]() {
+      cleanupAnimation()
+    },
   }
 })
 
@@ -173,14 +181,14 @@ const dispose = addRequestAnimationFrameLoop((now) => {
 dispose()
 ```
 
-### `addTimeout(cb, ms)`
+### `makeTimeout(cb, ms)`
 
 Creates a timeout with cleanup.
 
 ```typescript
-import { addTimeout } from 'jrx'
+import {makeTimeout} from 'jrx'
 
-const cancel = addTimeout(() => {
+const cancel = makeTimeout(() => {
   console.log('Timeout fired')
 }, 1000)
 
@@ -188,23 +196,25 @@ const cancel = addTimeout(() => {
 cancel()
 ```
 
-### `addTransition(cb, durationMs)`
+### `makeTransition(cb, durationMs)`
 
-Creates an animation transition with progress tracking (0 to 1).
+Creates an animation transition with progress tracking (0 to 1). Returns a `Disposable`.
 
 ```typescript
-import { addTransition } from 'jrx'
+import {makeTransition} from 'jrx'
 
-const dispose = addTransition((progress) => {
+const handle = makeTransition((progress) => {
   element.style.opacity = progress.toString()
 
-  // Optional: return cleanup function
-  return () => {
-    console.log('Frame cleanup')
+  // Optional: return a Disposable for cleanup
+  return {
+    [Symbol.dispose]() {
+      console.log('Frame cleanup')
+    },
   }
 }, 1000)
 
-dispose()
+handle[Symbol.dispose]()
 ```
 
 ### `computed(fn, getDeps?)`
@@ -212,7 +222,7 @@ dispose()
 Creates a memoized computed value with optional dependency tracking.
 
 ```typescript
-import { computed } from 'jrx'
+import {computed} from 'jrx'
 
 // Without dependencies - always recomputes
 const value1 = computed(() => expensiveCalculation())
@@ -279,18 +289,22 @@ const data = await r // undefined
 
 ## Cleanup Pattern
 
-All effect functions return a dispose function that stops the effect and runs any pending cleanup:
+Functions that manage ongoing effects return either a dispose function or a `Disposable` object:
 
 ```typescript
-import {addInterval, addTimeout, addRequestAnimationFrame} from 'jrx'
+import {makeInterval, makeTimeout, makeAnimationFrame, makeTransition} from 'jrx'
 
-// Each function returns a dispose function
-const disposeInterval = addInterval(() => console.log('tick'), 1000)
-const disposeTimeout = addTimeout(() => console.log('timeout'), 5000)
-const disposeRaf = addRequestAnimationFrame((now) => render(now))
+// Functions returning Disposable objects (use with `using` or call [Symbol.dispose]())
+const interval = makeInterval(() => console.log('tick'), 1000)
+const transition = makeTransition((p) => console.log(p), 1000)
 
-// Call the dispose function to stop the effect
-disposeInterval()
+interval[Symbol.dispose]()
+transition[Symbol.dispose]()
+
+// Functions returning dispose functions (call directly)
+const disposeTimeout = makeTimeout(() => console.log('timeout'), 5000)
+const disposeRaf = makeAnimationFrame((now) => render(now))
+
 disposeTimeout()
 disposeRaf()
 ```

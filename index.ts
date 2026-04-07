@@ -20,42 +20,43 @@ export function makeAsyncReset() {
 }
 
 export function makeRenderLoop() {
-	let loop_: ((time: DOMHighResTimeStamp) => undefined | (() => void)) | undefined
+	let loop_: ((time: DOMHighResTimeStamp) => undefined | Disposable) | undefined
 	const reset = makeReset()
 
 	return {
 		loop(this: void, time: DOMHighResTimeStamp) {
-			reset().defer(loop_?.(time))
+			reset().use(loop_?.(time))
 		},
-		setLoop(this: void, loop: (time: DOMHighResTimeStamp) => undefined | (() => void)) {
+		setLoop(this: void, loop: (time: DOMHighResTimeStamp) => undefined | Disposable) {
 			loop_ = loop
-			return () => {
-				reset()
-				loop_ = undefined
+			return {
+				[Symbol.dispose]() {
+					reset()
+					loop_ = undefined
+				},
 			}
 		},
 	}
 }
 
-export function addInterval(cb: () => undefined | (() => any), ms: number) {
+export function makeInterval(cb: () => undefined | Disposable, ms: number) {
 	const reset = makeReset()
 	let timeout: ReturnType<typeof setTimeout>
 	wrapper()
-	return () => {
-		reset()
-		clearTimeout(timeout)
+	return {
+		[Symbol.dispose]() {
+			reset()
+			clearTimeout(timeout)
+		},
 	}
 
 	function wrapper() {
-		reset().defer(cb)
+		reset().use(cb())
 		timeout = setTimeout(wrapper, ms)
 	}
 }
 
-export function addIntervalAsync(
-	cb: () => (void | Disposable) & (void | (() => any) | Promise<void> | Promise<() => any>),
-	ms: number,
-) {
+export function makeIntervalAsync(cb: () => void | Disposable | Promise<void>, ms: number) {
 	const reset = makeReset()
 	let timeout: ReturnType<typeof setTimeout>
 	void wrapper()
@@ -66,16 +67,16 @@ export function addIntervalAsync(
 
 	async function wrapper() {
 		const stack = reset()
-		await stack.adopt(cb(), v => v?.[Symbol.dispose]?.())
+		await stack.adopt(cb(), (v: any) => v?.[Symbol.dispose]?.())
 		if (!stack.disposed) timeout = setTimeout(wrapper, ms)
 	}
 }
 
-export function addRequestAnimationFrame(cb: (now: DOMHighResTimeStamp) => undefined | (() => any)) {
+export function makeAnimationFrame(cb: (now: DOMHighResTimeStamp) => undefined | Disposable) {
 	const stack = new DisposableStack()
 	const raf = requestAnimationFrame(now => {
 		if (stack.disposed) return
-		stack.defer(cb(now))
+		stack.use(cb(now))
 	})
 	return () => {
 		stack.dispose()
@@ -83,7 +84,7 @@ export function addRequestAnimationFrame(cb: (now: DOMHighResTimeStamp) => undef
 	}
 }
 
-export function addRequestAnimationFrameLoop(cb: (now: DOMHighResTimeStamp) => undefined | (() => any)) {
+export function makeAnimationFrameLoop(cb: (now: DOMHighResTimeStamp) => undefined | Disposable) {
 	const reset = makeReset()
 	let raf = requestAnimationFrame(wrapper)
 	return () => {
@@ -92,35 +93,37 @@ export function addRequestAnimationFrameLoop(cb: (now: DOMHighResTimeStamp) => u
 	}
 
 	function wrapper(now: DOMHighResTimeStamp) {
-		reset().defer(cb(now))
+		reset().use(cb(now))
 		raf = requestAnimationFrame(wrapper)
 	}
 }
 
-export function addTimeout(cb: () => void, ms: number) {
+export function makeTimeout(cb: () => void, ms: number) {
 	const timeout = setTimeout(cb, ms)
 	return () => clearTimeout(timeout)
 }
 
-export function addTransition(cb: (progress: number) => undefined | (() => void), durationMs: number) {
+export function makeTransition(cb: (progress: number) => undefined | Disposable, durationMs: number) {
 	const reset = makeReset()
 	let start: DOMHighResTimeStamp | undefined
 	let raf = requestAnimationFrame(wrapper)
-	return () => {
-		reset()
-		cancelAnimationFrame(raf)
+	return {
+		[Symbol.dispose]() {
+			reset()
+			cancelAnimationFrame(raf)
+		},
 	}
 
 	function wrapper(now: DOMHighResTimeStamp) {
 		if (start === undefined) {
 			start = now
-			reset().defer(cb(0))
+			reset().use(cb(0))
 			raf = requestAnimationFrame(wrapper)
 		} else {
 			const progress = (now - start) / durationMs
-			if (progress >= 1) reset().defer(cb(1))
+			if (progress >= 1) reset().use(cb(1))
 			else {
-				reset().defer(cb(progress))
+				reset().use(cb(progress))
 				raf = requestAnimationFrame(wrapper)
 			}
 		}

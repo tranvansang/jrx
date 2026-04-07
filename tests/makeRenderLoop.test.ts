@@ -9,10 +9,10 @@ test('makeRenderLoop - basic functionality', () => {
 	ok(typeof renderLoop.setLoop === 'function', 'renderLoop should have setLoop method')
 })
 
-test('makeRenderLoop - setLoop returns a disposer function', () => {
+test('makeRenderLoop - setLoop returns a Disposable', () => {
 	const renderLoop = makeRenderLoop()
-	const dispose = renderLoop.setLoop(() => {})
-	ok(typeof dispose === 'function', 'setLoop should return a disposer function')
+	const handle = renderLoop.setLoop(() => {})
+	ok(Symbol.dispose in handle, 'setLoop should return a Disposable')
 })
 
 test('makeRenderLoop - loop calls the set loop function with time', () => {
@@ -32,13 +32,15 @@ test('makeRenderLoop - loop calls the set loop function with time', () => {
 	strictEqual(receivedTime, testTime, 'loop function should receive the time parameter')
 })
 
-test('makeRenderLoop - loop function can return a cleanup function', () => {
+test('makeRenderLoop - loop function can return a Disposable for cleanup', () => {
 	const renderLoop = makeRenderLoop()
 	let cleanupCalled = false
 
 	renderLoop.setLoop(() => {
-		return () => {
-			cleanupCalled = true
+		return {
+			[Symbol.dispose]() {
+				cleanupCalled = true
+			},
 		}
 	})
 
@@ -56,8 +58,10 @@ test('makeRenderLoop - cleanup is called before each loop execution', () => {
 
 	renderLoop.setLoop((time) => {
 		loopCalls.push(time)
-		return () => {
-			cleanupCalls.push(time)
+		return {
+			[Symbol.dispose]() {
+				cleanupCalls.push(time)
+			},
 		}
 	})
 
@@ -74,17 +78,19 @@ test('makeRenderLoop - disposer cleans up and unsets the loop', () => {
 	let loopCallCount = 0
 	let cleanupCalled = false
 
-	const dispose = renderLoop.setLoop(() => {
+	const handle = renderLoop.setLoop(() => {
 		loopCallCount++
-		return () => {
-			cleanupCalled = true
+		return {
+			[Symbol.dispose]() {
+				cleanupCalled = true
+			},
 		}
 	})
 
 	renderLoop.loop(100)
 	strictEqual(loopCallCount, 1, 'loop should be called once')
 
-	dispose()
+	handle[Symbol.dispose]()
 	strictEqual(cleanupCalled, true, 'cleanup should be called when disposed')
 
 	renderLoop.loop(200)
@@ -100,8 +106,10 @@ test('makeRenderLoop - changing loop function switches to new loop', () => {
 
 	renderLoop.setLoop(() => {
 		loop1Calls++
-		return () => {
-			cleanup1Called = true
+		return {
+			[Symbol.dispose]() {
+				cleanup1Called = true
+			},
 		}
 	})
 
@@ -111,8 +119,10 @@ test('makeRenderLoop - changing loop function switches to new loop', () => {
 	// Changing loop doesn't call cleanup immediately, but on next loop() call
 	renderLoop.setLoop(() => {
 		loop2Calls++
-		return () => {
-			cleanup2Called = true
+		return {
+			[Symbol.dispose]() {
+				cleanup2Called = true
+			},
 		}
 	})
 
@@ -134,12 +144,12 @@ test('makeRenderLoop - loop without setLoop does nothing', () => {
 
 test('makeRenderLoop - multiple consecutive disposals are safe', () => {
 	const renderLoop = makeRenderLoop()
-	const dispose = renderLoop.setLoop(() => {})
+	const handle = renderLoop.setLoop(() => {})
 
 	doesNotThrow(() => {
-		dispose()
-		dispose()
-		dispose()
+		handle[Symbol.dispose]()
+		handle[Symbol.dispose]()
+		handle[Symbol.dispose]()
 	}, 'multiple disposal calls should be safe')
 })
 
@@ -175,39 +185,47 @@ test('makeRenderLoop - loop preserves this context', () => {
 test('makeRenderLoop - setLoop preserves this context', () => {
 	const renderLoop = makeRenderLoop()
 
-	const dispose = renderLoop.setLoop(function (this: any) {
+	const handle = renderLoop.setLoop(function (this: any) {
 		strictEqual(this, undefined, 'this should be undefined in loop function')
 	})
 
-	ok(typeof dispose === 'function')
+	ok(Symbol.dispose in handle)
 })
 
 test('makeRenderLoop - complex scenario with multiple loops and cleanups', () => {
 	const renderLoop = makeRenderLoop()
 	const events: string[] = []
 
-	const dispose1 = renderLoop.setLoop(() => {
+	const handle1 = renderLoop.setLoop(() => {
 		events.push('loop1')
-		return () => events.push('cleanup1')
+		return {
+			[Symbol.dispose]() {
+				events.push('cleanup1')
+			},
+		}
 	})
 
 	renderLoop.loop(100)
 	renderLoop.loop(200)
 
-	dispose1()
+	handle1[Symbol.dispose]()
 
-	const dispose2 = renderLoop.setLoop(() => {
+	const handle2 = renderLoop.setLoop(() => {
 		events.push('loop2')
-		return () => events.push('cleanup2')
+		return {
+			[Symbol.dispose]() {
+				events.push('cleanup2')
+			},
+		}
 	})
 
 	renderLoop.loop(300)
 
-	dispose2()
+	handle2[Symbol.dispose]()
 
 	deepStrictEqual(
 		events,
 		['loop1', 'cleanup1', 'loop1', 'cleanup1', 'loop2', 'cleanup2'],
-		'events should occur in correct order'
+		'events should occur in correct order',
 	)
 })
