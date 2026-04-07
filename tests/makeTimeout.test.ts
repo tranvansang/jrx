@@ -2,10 +2,10 @@ import {test} from 'node:test'
 import {ok, strictEqual, doesNotThrow, deepStrictEqual} from 'node:assert'
 import {makeTimeout} from '../index.js'
 
-test('makeTimeout - returns a disposer function', () => {
+test('makeTimeout - returns a Disposable', () => {
 	const dispose = makeTimeout(() => {}, 100)
-	ok(typeof dispose === 'function', 'makeTimeout should return a disposer function')
-	dispose()
+	ok(Symbol.dispose in dispose, 'makeTimeout should return a Disposable')
+	dispose[Symbol.dispose]()
 })
 
 test('makeTimeout - callback is called after the specified delay', async () => {
@@ -25,7 +25,7 @@ test('makeTimeout - callback is called after the specified delay', async () => {
 	const elapsed = Date.now() - startTime
 	ok(elapsed >= 50, `elapsed time should be at least 50ms, got ${elapsed}ms`)
 
-	dispose()
+	dispose[Symbol.dispose]()
 })
 
 test('makeTimeout - callback timing is approximately correct', async () => {
@@ -45,7 +45,7 @@ test('makeTimeout - callback timing is approximately correct', async () => {
 	// Allow some tolerance (±30ms)
 	ok(elapsed >= delay - 30 && elapsed <= delay + 30, `elapsed time should be around ${delay}ms, got ${elapsed}ms`)
 
-	dispose()
+	dispose[Symbol.dispose]()
 })
 
 test('makeTimeout - disposer cancels the timeout', async () => {
@@ -55,7 +55,7 @@ test('makeTimeout - disposer cancels the timeout', async () => {
 		called = true
 	}, 50)
 
-	dispose()
+	dispose[Symbol.dispose]()
 
 	await new Promise(resolve => setTimeout(resolve, 70))
 
@@ -70,7 +70,7 @@ test('makeTimeout - disposer can be called before timeout fires', async () => {
 	}, 100)
 
 	await new Promise(resolve => setTimeout(resolve, 30))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	await new Promise(resolve => setTimeout(resolve, 100))
 
@@ -81,9 +81,9 @@ test('makeTimeout - multiple disposals are safe', async () => {
 	const dispose = makeTimeout(() => {}, 100)
 
 	doesNotThrow(() => {
-		dispose()
-		dispose()
-		dispose()
+		dispose[Symbol.dispose]()
+		dispose[Symbol.dispose]()
+		dispose[Symbol.dispose]()
 	}, 'multiple disposal calls should be safe')
 
 	await new Promise(resolve => setTimeout(resolve, 120))
@@ -101,7 +101,7 @@ test('makeTimeout - disposer after timeout has fired is safe', async () => {
 	strictEqual(called, true, 'callback should be called')
 
 	doesNotThrow(() => {
-		dispose()
+		dispose[Symbol.dispose]()
 	}, 'disposal after timeout fired should be safe')
 })
 
@@ -117,7 +117,7 @@ test('makeTimeout - zero delay works', async () => {
 	await new Promise(resolve => setTimeout(resolve, 10))
 
 	strictEqual(called, true, 'callback should be called with zero delay')
-	dispose()
+	dispose[Symbol.dispose]()
 })
 
 test('makeTimeout - large delay works', async () => {
@@ -130,7 +130,7 @@ test('makeTimeout - large delay works', async () => {
 	await new Promise(resolve => setTimeout(resolve, 50))
 
 	strictEqual(called, false, 'callback should not be called before delay')
-	dispose()
+	dispose[Symbol.dispose]()
 })
 
 test('makeTimeout - callback is called only once', async () => {
@@ -144,7 +144,7 @@ test('makeTimeout - callback is called only once', async () => {
 	await new Promise(resolve => setTimeout(resolve, 70))
 
 	strictEqual(callCount, 1, 'callback should be called exactly once')
-	dispose()
+	dispose[Symbol.dispose]()
 })
 
 test('makeTimeout - callback with no return value works', async () => {
@@ -158,7 +158,7 @@ test('makeTimeout - callback with no return value works', async () => {
 	await new Promise(resolve => setTimeout(resolve, 70))
 
 	strictEqual(called, true, 'callback should be called')
-	dispose()
+	dispose[Symbol.dispose]()
 })
 
 test('makeTimeout - callback returning a value works', async () => {
@@ -172,7 +172,7 @@ test('makeTimeout - callback returning a value works', async () => {
 	await new Promise(resolve => setTimeout(resolve, 70))
 
 	strictEqual(called, true, 'callback should be called')
-	dispose()
+	dispose[Symbol.dispose]()
 })
 
 test('makeTimeout - callback without errors works', async () => {
@@ -186,7 +186,7 @@ test('makeTimeout - callback without errors works', async () => {
 	await new Promise(resolve => setTimeout(resolve, 70))
 
 	strictEqual(called, true, 'callback should have been called')
-	dispose()
+	dispose[Symbol.dispose]()
 })
 
 test('makeTimeout - multiple independent timeouts work correctly', async () => {
@@ -218,9 +218,9 @@ test('makeTimeout - multiple independent timeouts work correctly', async () => {
 	await new Promise(resolve => setTimeout(resolve, 35))
 	strictEqual(count3, 1, 'third timeout should have fired')
 
-	dispose1()
-	dispose2()
-	dispose3()
+	dispose1[Symbol.dispose]()
+	dispose2[Symbol.dispose]()
+	dispose3[Symbol.dispose]()
 })
 
 test('makeTimeout - canceling one timeout does not affect others', async () => {
@@ -235,14 +235,14 @@ test('makeTimeout - canceling one timeout does not affect others', async () => {
 		count2++
 	}, 50)
 
-	dispose1()
+	dispose1[Symbol.dispose]()
 
 	await new Promise(resolve => setTimeout(resolve, 70))
 
 	strictEqual(count1, 0, 'first timeout should not have fired')
 	strictEqual(count2, 1, 'second timeout should have fired')
 
-	dispose2()
+	dispose2[Symbol.dispose]()
 })
 
 test('makeTimeout - callback captures closure correctly', async () => {
@@ -272,7 +272,7 @@ test('makeTimeout - state from outer scope is accessible', async () => {
 	await new Promise(resolve => setTimeout(resolve, 70))
 
 	strictEqual(capturedState, 'modified', 'callback should access modified external state')
-	dispose()
+	dispose[Symbol.dispose]()
 })
 
 test('makeTimeout - very short delays work correctly', async () => {
@@ -294,9 +294,9 @@ test('makeTimeout - disposal immediately after creation works', () => {
 		called = true
 	}, 50)
 
-	dispose()
+	dispose[Symbol.dispose]()
 
-	doesNotThrow(() => dispose(), 'immediate disposal should work')
+	doesNotThrow(() => dispose[Symbol.dispose](), 'immediate disposal should work')
 })
 
 test('makeTimeout - callback receives no parameters', async () => {
@@ -310,7 +310,7 @@ test('makeTimeout - callback receives no parameters', async () => {
 
 	ok(receivedArgs !== undefined, 'callback should have been called')
 	strictEqual(receivedArgs!.length, 0, 'callback should receive no arguments')
-	dispose()
+	dispose[Symbol.dispose]()
 })
 
 test('makeTimeout - works with async callback', async () => {
@@ -324,5 +324,5 @@ test('makeTimeout - works with async callback', async () => {
 	await new Promise(resolve => setTimeout(resolve, 80))
 
 	strictEqual(called, true, 'async callback should be called')
-	dispose()
+	dispose[Symbol.dispose]()
 })

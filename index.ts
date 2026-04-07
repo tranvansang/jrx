@@ -60,9 +60,11 @@ export function makeIntervalAsync(cb: () => void | Disposable | Promise<void>, m
 	const reset = makeReset()
 	let timeout: ReturnType<typeof setTimeout>
 	void wrapper()
-	return () => {
-		reset()
-		clearTimeout(timeout)
+	return {
+		[Symbol.dispose]() {
+			reset()
+			clearTimeout(timeout)
+		},
 	}
 
 	async function wrapper() {
@@ -78,18 +80,22 @@ export function makeAnimationFrame(cb: (now: DOMHighResTimeStamp) => undefined |
 		if (stack.disposed) return
 		stack.use(cb(now))
 	})
-	return () => {
-		stack.dispose()
-		cancelAnimationFrame(raf)
+	return {
+		[Symbol.dispose]() {
+			stack.dispose()
+			cancelAnimationFrame(raf)
+		},
 	}
 }
 
 export function makeAnimationFrameLoop(cb: (now: DOMHighResTimeStamp) => undefined | Disposable) {
 	const reset = makeReset()
 	let raf = requestAnimationFrame(wrapper)
-	return () => {
-		reset()
-		cancelAnimationFrame(raf)
+	return {
+		[Symbol.dispose]() {
+			reset()
+			cancelAnimationFrame(raf)
+		},
 	}
 
 	function wrapper(now: DOMHighResTimeStamp) {
@@ -100,7 +106,11 @@ export function makeAnimationFrameLoop(cb: (now: DOMHighResTimeStamp) => undefin
 
 export function makeTimeout(cb: () => void, ms: number) {
 	const timeout = setTimeout(cb, ms)
-	return () => clearTimeout(timeout)
+	return {
+		[Symbol.dispose]() {
+			clearTimeout(timeout)
+		},
+	}
 }
 
 export function makeTransition(cb: (progress: number) => undefined | Disposable, durationMs: number) {

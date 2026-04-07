@@ -2,10 +2,10 @@ import {test} from 'node:test'
 import {ok, strictEqual, doesNotThrow} from 'node:assert'
 import {makeIntervalAsync} from '../index.js'
 
-test('makeIntervalAsync - returns a disposer function', () => {
+test('makeIntervalAsync - returns a Disposable', () => {
 	const dispose = makeIntervalAsync(() => {}, 100)
-	ok(typeof dispose === 'function', 'makeIntervalAsync should return a disposer function')
-	dispose()
+	ok(Symbol.dispose in dispose, 'makeIntervalAsync should return a Disposable')
+	dispose[Symbol.dispose]()
 })
 
 test('makeIntervalAsync - callback is called immediately', async () => {
@@ -18,7 +18,7 @@ test('makeIntervalAsync - callback is called immediately', async () => {
 	await new Promise(resolve => setTimeout(resolve, 10))
 
 	strictEqual(called, true, 'callback should be called immediately')
-	dispose()
+	dispose[Symbol.dispose]()
 })
 
 test('makeIntervalAsync - callback receives no parameters', async () => {
@@ -29,7 +29,7 @@ test('makeIntervalAsync - callback receives no parameters', async () => {
 	}, 100)
 
 	await new Promise(resolve => setTimeout(resolve, 10))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	ok(receivedArgs !== undefined, 'callback should have been called')
 	strictEqual(receivedArgs!.length, 0, 'callback should receive no arguments')
@@ -42,7 +42,7 @@ test('makeIntervalAsync - callback is called repeatedly', async () => {
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 150))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	ok(calls.length >= 3, `callback should be called at least 3 times, got ${calls.length}`)
 })
@@ -57,7 +57,7 @@ test('makeIntervalAsync - async callback is awaited', async () => {
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 150))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	// Should have start-end pairs (not interleaved)
 	// Check only complete pairs (dispose might interrupt a call)
@@ -82,7 +82,7 @@ test('makeIntervalAsync - next interval waits for async callback to complete', a
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 200))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	// With 60ms execution and 50ms interval, calls should be spaced at least 60ms apart
 	for (let i = 1; i < calls.length; i++) {
@@ -98,7 +98,7 @@ test('makeIntervalAsync - disposer stops the interval', async () => {
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 80))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	const countAfterDispose = callCount
 	await new Promise(resolve => setTimeout(resolve, 100))
@@ -115,7 +115,7 @@ test('makeIntervalAsync - disposal stops future callbacks', async () => {
 
 	await new Promise(resolve => setTimeout(resolve, 10))
 	const countBeforeDispose = callCount
-	dispose()
+	dispose[Symbol.dispose]()
 
 	await new Promise(resolve => setTimeout(resolve, 100))
 	strictEqual(callCount, countBeforeDispose, 'no more callbacks after disposal')
@@ -130,7 +130,7 @@ test('makeIntervalAsync - disposal during async callback prevents next interval'
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 40))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	const countAfterDispose = callCount
 	await new Promise(resolve => setTimeout(resolve, 150))
@@ -148,7 +148,7 @@ test('makeIntervalAsync - callback completes successfully', async () => {
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 120))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	ok(callCount >= 2, 'callback should be called multiple times')
 })
@@ -163,7 +163,7 @@ test('makeIntervalAsync - async callback completes successfully', async () => {
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 120))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	ok(callCount >= 2, 'async callback should be called multiple times')
 })
@@ -178,7 +178,7 @@ test('makeIntervalAsync - callbacks are called sequentially', async () => {
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 150))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	// Should see multiple callbacks
 	const callbackCount = events.filter(e => e === 'callback').length
@@ -191,9 +191,9 @@ test('makeIntervalAsync - multiple disposals are safe', async () => {
 	await new Promise(resolve => setTimeout(resolve, 10))
 
 	doesNotThrow(() => {
-		dispose()
-		dispose()
-		dispose()
+		dispose[Symbol.dispose]()
+		dispose[Symbol.dispose]()
+		dispose[Symbol.dispose]()
 	}, 'multiple disposal calls should be safe')
 })
 
@@ -205,7 +205,7 @@ test('makeIntervalAsync - callback returning undefined is handled', async () => 
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 120))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	ok(callCount >= 2, 'callback should be called multiple times even when returning undefined')
 })
@@ -218,7 +218,7 @@ test('makeIntervalAsync - async callback returning void is handled', async () =>
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 120))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	ok(callCount >= 2, 'callback should be called multiple times')
 })
@@ -230,7 +230,7 @@ test('makeIntervalAsync - zero interval works', async () => {
 	}, 0)
 
 	await new Promise(resolve => setTimeout(resolve, 50))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	ok(callCount >= 3, 'callback should be called multiple times even with 0 interval')
 })
@@ -243,7 +243,7 @@ test('makeIntervalAsync - callback without errors works', async () => {
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 150))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	ok(callCount >= 3, 'callback should be called multiple times')
 })
@@ -257,7 +257,7 @@ test('makeIntervalAsync - async callback without errors works', async () => {
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 150))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	ok(callCount >= 2, 'async callback should be called multiple times')
 })
@@ -273,7 +273,7 @@ test('makeIntervalAsync - cleanup disposable is disposed on reset', async () => 
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 120))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	ok(disposeCount >= 2, 'cleanup disposable should be disposed on each reset')
 })
@@ -289,7 +289,7 @@ test('makeIntervalAsync - sync callback returning disposable is cleaned up', asy
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 120))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	ok(disposeCount >= 2, 'sync cleanup disposable should be disposed on each reset')
 })
@@ -305,7 +305,7 @@ test('makeIntervalAsync - state is maintained across async calls', async () => {
 	}, 50)
 
 	await new Promise(resolve => setTimeout(resolve, 150))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	// Check that values are sequential
 	for (let i = 0; i < values.length; i++) {
@@ -323,7 +323,7 @@ test('makeIntervalAsync - rapid disposal during first execution', async () => {
 
 	// Dispose immediately
 	await new Promise(resolve => setTimeout(resolve, 5))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	await new Promise(resolve => setTimeout(resolve, 100))
 
@@ -343,7 +343,7 @@ test('makeIntervalAsync - callback can return a disposable for cleanup', async (
 	}, 100)
 
 	await new Promise(resolve => setTimeout(resolve, 10))
-	dispose()
+	dispose[Symbol.dispose]()
 
 	await new Promise(resolve => setTimeout(resolve, 10))
 	strictEqual(disposeCalled, true, 'disposable returned from callback should be disposed on cleanup')

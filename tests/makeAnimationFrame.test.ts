@@ -38,12 +38,12 @@ function setupRAFMocks() {
 	return {tick, cleanup, getCallbackCount: () => callbacks.size, getCurrentTime: () => currentTime}
 }
 
-test('makeAnimationFrame - returns a disposer function', () => {
+test('makeAnimationFrame - returns a Disposable', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const dispose = makeAnimationFrame(() => {})
-		ok(typeof dispose === 'function', 'makeAnimationFrame should return a disposer function')
-		dispose()
+		ok(Symbol.dispose in dispose, 'makeAnimationFrame should return a Disposable')
+		dispose[Symbol.dispose]()
 	} finally {
 		mocks.cleanup()
 	}
@@ -64,7 +64,7 @@ test('makeAnimationFrame - callback is called on next frame', () => {
 
 		strictEqual(called, true, 'callback should be called on next frame')
 		ok(typeof receivedTime === 'number', 'callback should receive time parameter')
-		dispose()
+		dispose[Symbol.dispose]()
 	} finally {
 		mocks.cleanup()
 	}
@@ -84,7 +84,7 @@ test('makeAnimationFrame - callback is called only once', () => {
 		mocks.tick()
 
 		strictEqual(calls.length, 1, 'callback should be called only once')
-		dispose()
+		dispose[Symbol.dispose]()
 	} finally {
 		mocks.cleanup()
 	}
@@ -103,7 +103,7 @@ test('makeAnimationFrame - callback receives timestamp', () => {
 
 		ok(typeof receivedTime === 'number', 'callback should receive timestamp')
 		ok(Math.abs(receivedTime! - 16.67) < 0.01, 'timestamp should be accurate')
-		dispose()
+		dispose[Symbol.dispose]()
 	} finally {
 		mocks.cleanup()
 	}
@@ -118,7 +118,7 @@ test('makeAnimationFrame - disposer cancels before frame', () => {
 			callCount++
 		})
 
-		dispose()
+		dispose[Symbol.dispose]()
 		mocks.tick()
 
 		strictEqual(callCount, 0, 'callback should not be called if disposed before frame')
@@ -139,7 +139,7 @@ test('makeAnimationFrame - disposer after frame is safe', () => {
 		mocks.tick()
 		strictEqual(callCount, 1, 'callback should be called once')
 
-		dispose()
+		dispose[Symbol.dispose]()
 		mocks.tick()
 		mocks.tick()
 
@@ -165,7 +165,7 @@ test('makeAnimationFrame - callback can return a cleanup Disposable', () => {
 		mocks.tick()
 		strictEqual(cleanupCalled, false, 'cleanup should not be called immediately after frame')
 
-		dispose()
+		dispose[Symbol.dispose]()
 		strictEqual(cleanupCalled, true, 'cleanup should be called on disposal')
 	} finally {
 		mocks.cleanup()
@@ -186,7 +186,7 @@ test('makeAnimationFrame - cleanup is called on disposal', () => {
 		})
 
 		mocks.tick()
-		dispose()
+		dispose[Symbol.dispose]()
 
 		strictEqual(cleanupCalled, true, 'cleanup should be called when disposed')
 	} finally {
@@ -202,9 +202,9 @@ test('makeAnimationFrame - multiple disposals are safe', () => {
 		mocks.tick()
 
 		doesNotThrow(() => {
-			dispose()
-			dispose()
-			dispose()
+			dispose[Symbol.dispose]()
+			dispose[Symbol.dispose]()
+			dispose[Symbol.dispose]()
 		}, 'multiple disposal calls should be safe')
 	} finally {
 		mocks.cleanup()
@@ -225,7 +225,7 @@ test('makeAnimationFrame - callback returning undefined is handled', () => {
 		mocks.tick()
 
 		strictEqual(callCount, 1, 'callback should be called only once')
-		dispose()
+		dispose[Symbol.dispose]()
 	} finally {
 		mocks.cleanup()
 	}
@@ -243,7 +243,7 @@ test('makeAnimationFrame - callback without cleanup works', () => {
 		mocks.tick()
 
 		strictEqual(callCount, 1, 'callback should be called once')
-		dispose()
+		dispose[Symbol.dispose]()
 	} finally {
 		mocks.cleanup()
 	}
@@ -264,7 +264,7 @@ test('makeAnimationFrame - disposal before frame prevents execution', () => {
 			}
 		})
 
-		dispose()
+		dispose[Symbol.dispose]()
 		mocks.tick()
 
 		strictEqual(callCount, 0, 'callback should not be called')
@@ -292,13 +292,13 @@ test('makeAnimationFrame - multiple instances work independently', () => {
 		strictEqual(count1, 1, 'first instance should be called once')
 		strictEqual(count2, 1, 'second instance should be called once')
 
-		dispose1()
+		dispose1[Symbol.dispose]()
 		mocks.tick()
 
 		strictEqual(count1, 1, 'first instance should still be called only once')
 		strictEqual(count2, 1, 'second instance should still be called only once')
 
-		dispose2()
+		dispose2[Symbol.dispose]()
 	} finally {
 		mocks.cleanup()
 	}
@@ -315,7 +315,7 @@ test('makeAnimationFrame - cancellation prevents callback', () => {
 
 		strictEqual(mocks.getCallbackCount(), 1, 'one callback should be pending')
 
-		dispose()
+		dispose[Symbol.dispose]()
 
 		strictEqual(mocks.getCallbackCount(), 0, 'callback should be cancelled')
 
@@ -344,7 +344,7 @@ test('makeAnimationFrame - cleanup from callback is called on dispose', () => {
 		mocks.tick()
 		deepStrictEqual(events, ['callback'], 'only callback should be called after frame')
 
-		dispose()
+		dispose[Symbol.dispose]()
 		deepStrictEqual(events, ['callback', 'cleanup'], 'cleanup should be called on dispose')
 	} finally {
 		mocks.cleanup()
