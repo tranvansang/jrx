@@ -1,7 +1,7 @@
 import {makeReset} from './index.js'
 
 export default function retry<T>(
-	cb: (info: {resetBackoff(): void}) => (Disposable | undefined) & (T | Promise<T>),
+	cb: (info: {resetBackoff(): void}) => T | Promise<T>,
 	backoffSec = [5, 5, 10, 10, 20, 20, 40, 40, 60, -1], // -1: retry forever with the last backoff . first element must not be -1
 ): Disposable & Promise<T | undefined> {
 	const stack = new DisposableStack()
@@ -23,7 +23,7 @@ export default function retry<T>(
 							count = 1
 						},
 					})
-					return value?.[Symbol.dispose] ? loopStack.use(value) : value
+					return (value as any)?.[Symbol.dispose] ? loopStack.use(value as Disposable & (T | Promise<T>)) : value
 				} catch (e) {
 					if (stack.disposed) return
 					if (count > backoffSec.length) {
