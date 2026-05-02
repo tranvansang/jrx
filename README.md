@@ -37,6 +37,24 @@ npm i jrx
 - [`computed(fn, getDeps?)`](#computedfn-getdeps) - Memoized computed values
 - [`retry(cb, backoffSec?)`](#retrycb-backoffsec) - Retry with exponential backoff
 
+## Naming convention
+
+Functions prefixed with `create*` return a `Disposable` object. The returned object can be passed to [`DisposableStack.use()`](https://github.com/tc39/proposal-explicit-resource-management) or bound with the `using` keyword for automatic cleanup.
+
+```typescript
+import {createInterval, createTimeout} from 'jrx'
+
+// With DisposableStack.use()
+using stack = new DisposableStack()
+stack.use(createInterval(() => console.log('tick'), 1000))
+stack.use(createTimeout(() => console.log('done'), 5000))
+// Both are disposed when `stack` goes out of scope
+
+// Or directly with `using`
+using interval = createInterval(() => console.log('tick'), 1000)
+// Disposed when the enclosing block exits
+```
+
 ## API
 
 ### `makeReset()`
