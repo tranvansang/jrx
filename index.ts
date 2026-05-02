@@ -39,7 +39,7 @@ export function makeRenderLoop() {
 	}
 }
 
-export function makeInterval(cb: () => undefined | Disposable, ms: number) {
+export function createInterval(cb: () => undefined | Disposable, ms: number) {
 	const reset = makeReset()
 	let timeout: ReturnType<typeof setTimeout>
 	wrapper()
@@ -56,7 +56,7 @@ export function makeInterval(cb: () => undefined | Disposable, ms: number) {
 	}
 }
 
-export function makeIntervalAsync(cb: () => void | Disposable | Promise<void>, ms: number) {
+export function createIntervalAsync(cb: () => void | Disposable | Promise<void>, ms: number) {
 	const reset = makeReset()
 	let timeout: ReturnType<typeof setTimeout>
 	void wrapper()
@@ -74,7 +74,7 @@ export function makeIntervalAsync(cb: () => void | Disposable | Promise<void>, m
 	}
 }
 
-export function makeAnimationFrame(cb: (now: DOMHighResTimeStamp) => undefined | Disposable) {
+export function createAnimationFrame(cb: (now: DOMHighResTimeStamp) => undefined | Disposable) {
 	const stack = new DisposableStack()
 	const raf = requestAnimationFrame(now => {
 		if (stack.disposed) return
@@ -88,7 +88,7 @@ export function makeAnimationFrame(cb: (now: DOMHighResTimeStamp) => undefined |
 	}
 }
 
-export function makeAnimationFrameLoop(cb: (now: DOMHighResTimeStamp) => undefined | Disposable) {
+export function createAnimationFrameLoop(cb: (now: DOMHighResTimeStamp) => undefined | Disposable) {
 	const reset = makeReset()
 	let raf = requestAnimationFrame(wrapper)
 	return {
@@ -104,7 +104,7 @@ export function makeAnimationFrameLoop(cb: (now: DOMHighResTimeStamp) => undefin
 	}
 }
 
-export function makeTimeout(cb: () => void, ms: number) {
+export function createTimeout(cb: () => void, ms: number) {
 	const timeout = setTimeout(cb, ms)
 	return {
 		[Symbol.dispose]() {
@@ -113,7 +113,7 @@ export function makeTimeout(cb: () => void, ms: number) {
 	}
 }
 
-export function makeTransition(cb: (progress: number) => undefined | Disposable, durationMs: number) {
+export function createTransition(cb: (progress: number) => undefined | Disposable, durationMs: number) {
 	const reset = makeReset()
 	let start: DOMHighResTimeStamp | undefined
 	let raf = requestAnimationFrame(wrapper)

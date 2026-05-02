@@ -1,18 +1,18 @@
 import {test} from 'node:test'
 import {ok, strictEqual, doesNotThrow, deepStrictEqual} from 'node:assert'
-import {makeTimeout} from '../index.js'
+import {createTimeout} from '../index.js'
 
-test('makeTimeout - returns a Disposable', () => {
-	const dispose = makeTimeout(() => {}, 100)
-	ok(Symbol.dispose in dispose, 'makeTimeout should return a Disposable')
+test('createTimeout - returns a Disposable', () => {
+	const dispose = createTimeout(() => {}, 100)
+	ok(Symbol.dispose in dispose, 'createTimeout should return a Disposable')
 	dispose[Symbol.dispose]()
 })
 
-test('makeTimeout - callback is called after the specified delay', async () => {
+test('createTimeout - callback is called after the specified delay', async () => {
 	let called = false
 	const startTime = Date.now()
 
-	const dispose = makeTimeout(() => {
+	const dispose = createTimeout(() => {
 		called = true
 	}, 50)
 
@@ -28,12 +28,12 @@ test('makeTimeout - callback is called after the specified delay', async () => {
 	dispose[Symbol.dispose]()
 })
 
-test('makeTimeout - callback timing is approximately correct', async () => {
+test('createTimeout - callback timing is approximately correct', async () => {
 	const delay = 100
 	const startTime = Date.now()
 	let callTime: number | undefined
 
-	const dispose = makeTimeout(() => {
+	const dispose = createTimeout(() => {
 		callTime = Date.now()
 	}, delay)
 
@@ -48,10 +48,10 @@ test('makeTimeout - callback timing is approximately correct', async () => {
 	dispose[Symbol.dispose]()
 })
 
-test('makeTimeout - disposer cancels the timeout', async () => {
+test('createTimeout - disposer cancels the timeout', async () => {
 	let called = false
 
-	const dispose = makeTimeout(() => {
+	const dispose = createTimeout(() => {
 		called = true
 	}, 50)
 
@@ -62,10 +62,10 @@ test('makeTimeout - disposer cancels the timeout', async () => {
 	strictEqual(called, false, 'callback should not be called after disposal')
 })
 
-test('makeTimeout - disposer can be called before timeout fires', async () => {
+test('createTimeout - disposer can be called before timeout fires', async () => {
 	let called = false
 
-	const dispose = makeTimeout(() => {
+	const dispose = createTimeout(() => {
 		called = true
 	}, 100)
 
@@ -77,8 +77,8 @@ test('makeTimeout - disposer can be called before timeout fires', async () => {
 	strictEqual(called, false, 'callback should not be called after early disposal')
 })
 
-test('makeTimeout - multiple disposals are safe', async () => {
-	const dispose = makeTimeout(() => {}, 100)
+test('createTimeout - multiple disposals are safe', async () => {
+	const dispose = createTimeout(() => {}, 100)
 
 	doesNotThrow(() => {
 		dispose[Symbol.dispose]()
@@ -89,10 +89,10 @@ test('makeTimeout - multiple disposals are safe', async () => {
 	await new Promise(resolve => setTimeout(resolve, 120))
 })
 
-test('makeTimeout - disposer after timeout has fired is safe', async () => {
+test('createTimeout - disposer after timeout has fired is safe', async () => {
 	let called = false
 
-	const dispose = makeTimeout(() => {
+	const dispose = createTimeout(() => {
 		called = true
 	}, 50)
 
@@ -105,10 +105,10 @@ test('makeTimeout - disposer after timeout has fired is safe', async () => {
 	}, 'disposal after timeout fired should be safe')
 })
 
-test('makeTimeout - zero delay works', async () => {
+test('createTimeout - zero delay works', async () => {
 	let called = false
 
-	const dispose = makeTimeout(() => {
+	const dispose = createTimeout(() => {
 		called = true
 	}, 0)
 
@@ -120,10 +120,10 @@ test('makeTimeout - zero delay works', async () => {
 	dispose[Symbol.dispose]()
 })
 
-test('makeTimeout - large delay works', async () => {
+test('createTimeout - large delay works', async () => {
 	let called = false
 
-	const dispose = makeTimeout(() => {
+	const dispose = createTimeout(() => {
 		called = true
 	}, 10000)
 
@@ -133,10 +133,10 @@ test('makeTimeout - large delay works', async () => {
 	dispose[Symbol.dispose]()
 })
 
-test('makeTimeout - callback is called only once', async () => {
+test('createTimeout - callback is called only once', async () => {
 	let callCount = 0
 
-	const dispose = makeTimeout(() => {
+	const dispose = createTimeout(() => {
 		callCount++
 	}, 50)
 
@@ -147,10 +147,10 @@ test('makeTimeout - callback is called only once', async () => {
 	dispose[Symbol.dispose]()
 })
 
-test('makeTimeout - callback with no return value works', async () => {
+test('createTimeout - callback with no return value works', async () => {
 	let called = false
 
-	const dispose = makeTimeout(() => {
+	const dispose = createTimeout(() => {
 		called = true
 		// No return value
 	}, 50)
@@ -161,10 +161,10 @@ test('makeTimeout - callback with no return value works', async () => {
 	dispose[Symbol.dispose]()
 })
 
-test('makeTimeout - callback returning a value works', async () => {
+test('createTimeout - callback returning a value works', async () => {
 	let called = false
 
-	const dispose = makeTimeout(() => {
+	const dispose = createTimeout(() => {
 		called = true
 		return 'some value'
 	}, 50)
@@ -175,10 +175,10 @@ test('makeTimeout - callback returning a value works', async () => {
 	dispose[Symbol.dispose]()
 })
 
-test('makeTimeout - callback without errors works', async () => {
+test('createTimeout - callback without errors works', async () => {
 	let called = false
 
-	const dispose = makeTimeout(() => {
+	const dispose = createTimeout(() => {
 		called = true
 		// Note: errors in callbacks are NOT caught
 	}, 50)
@@ -189,20 +189,20 @@ test('makeTimeout - callback without errors works', async () => {
 	dispose[Symbol.dispose]()
 })
 
-test('makeTimeout - multiple independent timeouts work correctly', async () => {
+test('createTimeout - multiple independent timeouts work correctly', async () => {
 	let count1 = 0
 	let count2 = 0
 	let count3 = 0
 
-	const dispose1 = makeTimeout(() => {
+	const dispose1 = createTimeout(() => {
 		count1++
 	}, 30)
 
-	const dispose2 = makeTimeout(() => {
+	const dispose2 = createTimeout(() => {
 		count2++
 	}, 60)
 
-	const dispose3 = makeTimeout(() => {
+	const dispose3 = createTimeout(() => {
 		count3++
 	}, 90)
 
@@ -223,15 +223,15 @@ test('makeTimeout - multiple independent timeouts work correctly', async () => {
 	dispose3[Symbol.dispose]()
 })
 
-test('makeTimeout - canceling one timeout does not affect others', async () => {
+test('createTimeout - canceling one timeout does not affect others', async () => {
 	let count1 = 0
 	let count2 = 0
 
-	const dispose1 = makeTimeout(() => {
+	const dispose1 = createTimeout(() => {
 		count1++
 	}, 50)
 
-	const dispose2 = makeTimeout(() => {
+	const dispose2 = createTimeout(() => {
 		count2++
 	}, 50)
 
@@ -245,11 +245,11 @@ test('makeTimeout - canceling one timeout does not affect others', async () => {
 	dispose2[Symbol.dispose]()
 })
 
-test('makeTimeout - callback captures closure correctly', async () => {
+test('createTimeout - callback captures closure correctly', async () => {
 	const results: number[] = []
 
 	for (let i = 0; i < 3; i++) {
-		makeTimeout(() => {
+		createTimeout(() => {
 			results.push(i)
 		}, 50)
 	}
@@ -259,11 +259,11 @@ test('makeTimeout - callback captures closure correctly', async () => {
 	deepStrictEqual(results, [0, 1, 2], 'closures should be captured correctly')
 })
 
-test('makeTimeout - state from outer scope is accessible', async () => {
+test('createTimeout - state from outer scope is accessible', async () => {
 	let externalState = 'initial'
 	let capturedState: string | undefined
 
-	const dispose = makeTimeout(() => {
+	const dispose = createTimeout(() => {
 		capturedState = externalState
 	}, 50)
 
@@ -275,22 +275,22 @@ test('makeTimeout - state from outer scope is accessible', async () => {
 	dispose[Symbol.dispose]()
 })
 
-test('makeTimeout - very short delays work correctly', async () => {
+test('createTimeout - very short delays work correctly', async () => {
 	const calls: number[] = []
 
-	makeTimeout(() => calls.push(1), 1)
-	makeTimeout(() => calls.push(2), 2)
-	makeTimeout(() => calls.push(3), 3)
+	createTimeout(() => calls.push(1), 1)
+	createTimeout(() => calls.push(2), 2)
+	createTimeout(() => calls.push(3), 3)
 
 	await new Promise(resolve => setTimeout(resolve, 20))
 
 	deepStrictEqual(calls, [1, 2, 3], 'timeouts with very short delays should fire in order')
 })
 
-test('makeTimeout - disposal immediately after creation works', () => {
+test('createTimeout - disposal immediately after creation works', () => {
 	let called = false
 
-	const dispose = makeTimeout(() => {
+	const dispose = createTimeout(() => {
 		called = true
 	}, 50)
 
@@ -299,10 +299,10 @@ test('makeTimeout - disposal immediately after creation works', () => {
 	doesNotThrow(() => dispose[Symbol.dispose](), 'immediate disposal should work')
 })
 
-test('makeTimeout - callback receives no parameters', async () => {
+test('createTimeout - callback receives no parameters', async () => {
 	let receivedArgs: any[] | undefined
 
-	const dispose = makeTimeout((...args: any[]) => {
+	const dispose = createTimeout((...args: any[]) => {
 		receivedArgs = args
 	}, 50)
 
@@ -313,10 +313,10 @@ test('makeTimeout - callback receives no parameters', async () => {
 	dispose[Symbol.dispose]()
 })
 
-test('makeTimeout - works with async callback', async () => {
+test('createTimeout - works with async callback', async () => {
 	let called = false
 
-	const dispose = makeTimeout(async () => {
+	const dispose = createTimeout(async () => {
 		await new Promise(resolve => setTimeout(resolve, 10))
 		called = true
 	}, 50)

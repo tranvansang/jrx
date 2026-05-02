@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import {ok, strictEqual, doesNotThrow, deepStrictEqual} from 'node:assert'
-import {makeTransition} from '../index.js'
+import {createTransition} from '../index.js'
 
 // Mock requestAnimationFrame and cancelAnimationFrame for Node.js environment
 function setupRAFMocks() {
@@ -38,23 +38,23 @@ function setupRAFMocks() {
 	return {tick, cleanup, getCallbackCount: () => callbacks.size, getCurrentTime: () => currentTime}
 }
 
-test('makeTransition - returns a Disposable object', () => {
+test('createTransition - returns a Disposable object', () => {
 	const mocks = setupRAFMocks()
 	try {
-		const dispose = makeTransition(() => {}, 1000)
-		ok(Symbol.dispose in dispose, 'makeTransition should return a Disposable object')
+		const dispose = createTransition(() => {}, 1000)
+		ok(Symbol.dispose in dispose, 'createTransition should return a Disposable object')
 		dispose[Symbol.dispose]()
 	} finally {
 		mocks.cleanup()
 	}
 })
 
-test('makeTransition - callback is called with progress 0 on first frame', () => {
+test('createTransition - callback is called with progress 0 on first frame', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let receivedProgress: number | undefined
 
-		const dispose = makeTransition(progress => {
+		const dispose = createTransition(progress => {
 			receivedProgress = progress
 		}, 1000)
 
@@ -67,12 +67,12 @@ test('makeTransition - callback is called with progress 0 on first frame', () =>
 	}
 })
 
-test('makeTransition - callback is called with increasing progress values', () => {
+test('createTransition - callback is called with increasing progress values', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const progressValues: number[] = []
 
-		const dispose = makeTransition(progress => {
+		const dispose = createTransition(progress => {
 			progressValues.push(progress)
 		}, 100)
 
@@ -99,12 +99,12 @@ test('makeTransition - callback is called with increasing progress values', () =
 	}
 })
 
-test('makeTransition - callback is called with progress 1 when duration is reached', () => {
+test('createTransition - callback is called with progress 1 when duration is reached', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const progressValues: number[] = []
 
-		const dispose = makeTransition(progress => {
+		const dispose = createTransition(progress => {
 			progressValues.push(progress)
 		}, 100)
 
@@ -121,12 +121,12 @@ test('makeTransition - callback is called with progress 1 when duration is reach
 	}
 })
 
-test('makeTransition - transition stops after reaching progress 1', () => {
+test('createTransition - transition stops after reaching progress 1', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const progressValues: number[] = []
 
-		const dispose = makeTransition(progress => {
+		const dispose = createTransition(progress => {
 			progressValues.push(progress)
 		}, 100)
 
@@ -148,13 +148,13 @@ test('makeTransition - transition stops after reaching progress 1', () => {
 	}
 })
 
-test('makeTransition - progress calculation is accurate', () => {
+test('createTransition - progress calculation is accurate', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const progressValues: number[] = []
 		const duration = 200
 
-		const dispose = makeTransition(progress => {
+		const dispose = createTransition(progress => {
 			progressValues.push(progress)
 		}, duration)
 
@@ -176,12 +176,12 @@ test('makeTransition - progress calculation is accurate', () => {
 	}
 })
 
-test('makeTransition - disposer stops the transition', () => {
+test('createTransition - disposer stops the transition', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let callCount = 0
 
-		const dispose = makeTransition(() => {
+		const dispose = createTransition(() => {
 			callCount++
 		}, 1000)
 
@@ -199,12 +199,12 @@ test('makeTransition - disposer stops the transition', () => {
 	}
 })
 
-test('makeTransition - callback can return a Disposable cleanup', () => {
+test('createTransition - callback can return a Disposable cleanup', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let cleanupCount = 0
 
-		const dispose = makeTransition(() => {
+		const dispose = createTransition(() => {
 			return {
 				[Symbol.dispose]() {
 					cleanupCount++
@@ -228,12 +228,12 @@ test('makeTransition - callback can return a Disposable cleanup', () => {
 	}
 })
 
-test('makeTransition - cleanup is called before each callback execution', () => {
+test('createTransition - cleanup is called before each callback execution', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const events: string[] = []
 
-		const dispose = makeTransition(() => {
+		const dispose = createTransition(() => {
 			events.push('callback')
 			return {
 				[Symbol.dispose]() {
@@ -259,12 +259,12 @@ test('makeTransition - cleanup is called before each callback execution', () => 
 	}
 })
 
-test('makeTransition - disposer calls cleanup', () => {
+test('createTransition - disposer calls cleanup', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let cleanupCalled = false
 
-		const dispose = makeTransition(() => {
+		const dispose = createTransition(() => {
 			return {
 				[Symbol.dispose]() {
 					cleanupCalled = true
@@ -281,10 +281,10 @@ test('makeTransition - disposer calls cleanup', () => {
 	}
 })
 
-test('makeTransition - multiple disposals are safe', () => {
+test('createTransition - multiple disposals are safe', () => {
 	const mocks = setupRAFMocks()
 	try {
-		const dispose = makeTransition(() => {}, 1000)
+		const dispose = createTransition(() => {}, 1000)
 
 		mocks.tick(0)
 
@@ -298,12 +298,12 @@ test('makeTransition - multiple disposals are safe', () => {
 	}
 })
 
-test('makeTransition - callback returning undefined is handled', () => {
+test('createTransition - callback returning undefined is handled', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let callCount = 0
 
-		const dispose = makeTransition(() => {
+		const dispose = createTransition(() => {
 			callCount++
 			return undefined
 		}, 100)
@@ -319,12 +319,12 @@ test('makeTransition - callback returning undefined is handled', () => {
 	}
 })
 
-test('makeTransition - zero duration works', () => {
+test('createTransition - zero duration works', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const progressValues: number[] = []
 
-		const dispose = makeTransition(progress => {
+		const dispose = createTransition(progress => {
 			progressValues.push(progress)
 		}, 0)
 
@@ -341,12 +341,12 @@ test('makeTransition - zero duration works', () => {
 	}
 })
 
-test('makeTransition - very short duration works', () => {
+test('createTransition - very short duration works', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const progressValues: number[] = []
 
-		const dispose = makeTransition(progress => {
+		const dispose = createTransition(progress => {
 			progressValues.push(progress)
 		}, 10)
 
@@ -364,12 +364,12 @@ test('makeTransition - very short duration works', () => {
 	}
 })
 
-test('makeTransition - very long duration works', () => {
+test('createTransition - very long duration works', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const progressValues: number[] = []
 
-		const dispose = makeTransition(progress => {
+		const dispose = createTransition(progress => {
 			progressValues.push(progress)
 		}, 10000)
 
@@ -386,12 +386,12 @@ test('makeTransition - very long duration works', () => {
 	}
 })
 
-test('makeTransition - callback without errors works', () => {
+test('createTransition - callback without errors works', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let callCount = 0
 
-		const dispose = makeTransition(() => {
+		const dispose = createTransition(() => {
 			callCount++
 			// Note: errors in callbacks are NOT caught
 		}, 1000)
@@ -407,13 +407,13 @@ test('makeTransition - callback without errors works', () => {
 	}
 })
 
-test('makeTransition - cleanup without errors works', () => {
+test('createTransition - cleanup without errors works', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let callCount = 0
 		let cleanupCount = 0
 
-		const dispose = makeTransition(() => {
+		const dispose = createTransition(() => {
 			callCount++
 			return {
 				[Symbol.dispose]() {
@@ -435,13 +435,13 @@ test('makeTransition - cleanup without errors works', () => {
 	}
 })
 
-test('makeTransition - state is maintained across frames', () => {
+test('createTransition - state is maintained across frames', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let counter = 0
 		const values: number[] = []
 
-		const dispose = makeTransition(() => {
+		const dispose = createTransition(() => {
 			counter++
 			values.push(counter)
 		}, 100)
@@ -457,16 +457,16 @@ test('makeTransition - state is maintained across frames', () => {
 	}
 })
 
-test('makeTransition - multiple transitions work independently', () => {
+test('createTransition - multiple transitions work independently', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const progress1: number[] = []
 		const progress2: number[] = []
 
-		const dispose1 = makeTransition(p => {
+		const dispose1 = createTransition(p => {
 			progress1.push(p)
 		}, 100)
-		const dispose2 = makeTransition(p => {
+		const dispose2 = createTransition(p => {
 			progress2.push(p)
 		}, 200)
 
@@ -488,12 +488,12 @@ test('makeTransition - multiple transitions work independently', () => {
 	}
 })
 
-test('makeTransition - dispose stops further frames', () => {
+test('createTransition - dispose stops further frames', () => {
 	const mocks = setupRAFMocks()
 	try {
 		let callCount = 0
 
-		const dispose = makeTransition(() => {
+		const dispose = createTransition(() => {
 			callCount++
 		}, 1000)
 
@@ -511,12 +511,12 @@ test('makeTransition - dispose stops further frames', () => {
 	}
 })
 
-test('makeTransition - progress never exceeds 1', () => {
+test('createTransition - progress never exceeds 1', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const progressValues: number[] = []
 
-		const dispose = makeTransition(progress => {
+		const dispose = createTransition(progress => {
 			progressValues.push(progress)
 		}, 100)
 
@@ -535,12 +535,12 @@ test('makeTransition - progress never exceeds 1', () => {
 	}
 })
 
-test('makeTransition - progress is always non-negative', () => {
+test('createTransition - progress is always non-negative', () => {
 	const mocks = setupRAFMocks()
 	try {
 		const progressValues: number[] = []
 
-		const dispose = makeTransition(progress => {
+		const dispose = createTransition(progress => {
 			progressValues.push(progress)
 		}, 100)
 

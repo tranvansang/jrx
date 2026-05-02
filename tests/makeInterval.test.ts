@@ -1,16 +1,16 @@
 import {test} from 'node:test'
 import {ok, strictEqual, doesNotThrow, deepStrictEqual} from 'node:assert'
-import {makeInterval} from '../index.js'
+import {createInterval} from '../index.js'
 
-test('makeInterval - returns a disposable object', () => {
-	const dispose = makeInterval(() => {}, 100)
-	ok(Symbol.dispose in dispose, 'makeInterval should return a disposable object')
+test('createInterval - returns a disposable object', () => {
+	const dispose = createInterval(() => {}, 100)
+	ok(Symbol.dispose in dispose, 'createInterval should return a disposable object')
 	dispose[Symbol.dispose]()
 })
 
-test('makeInterval - callback is called immediately', () => {
+test('createInterval - callback is called immediately', () => {
 	let called = false
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		called = true
 	}, 100)
 
@@ -18,9 +18,9 @@ test('makeInterval - callback is called immediately', () => {
 	dispose[Symbol.dispose]()
 })
 
-test('makeInterval - callback is called repeatedly', async () => {
+test('createInterval - callback is called repeatedly', async () => {
 	const calls: number[] = []
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		calls.push(Date.now())
 	}, 50)
 
@@ -31,10 +31,10 @@ test('makeInterval - callback is called repeatedly', async () => {
 	ok(calls.length >= 3, `callback should be called at least 3 times, got ${calls.length}`)
 })
 
-test('makeInterval - callback timing is approximately correct', async () => {
+test('createInterval - callback timing is approximately correct', async () => {
 	const calls: number[] = []
 	const interval = 50
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		calls.push(Date.now())
 	}, interval)
 
@@ -52,9 +52,9 @@ test('makeInterval - callback timing is approximately correct', async () => {
 	}
 })
 
-test('makeInterval - disposer stops the interval', async () => {
+test('createInterval - disposer stops the interval', async () => {
 	let callCount = 0
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		callCount++
 	}, 50)
 
@@ -67,9 +67,9 @@ test('makeInterval - disposer stops the interval', async () => {
 	strictEqual(callCount, countAfterDispose, 'callback should not be called after disposal')
 })
 
-test('makeInterval - callback can return a cleanup disposable', async () => {
+test('createInterval - callback can return a cleanup disposable', async () => {
 	let cleanupCount = 0
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		return {
 			[Symbol.dispose]() {
 				cleanupCount++
@@ -85,10 +85,10 @@ test('makeInterval - callback can return a cleanup disposable', async () => {
 	ok(cleanupCount >= 2, `cleanup should be called at least 2 times, got ${cleanupCount}`)
 })
 
-test('makeInterval - cleanup is called before each callback execution', async () => {
+test('createInterval - cleanup is called before each callback execution', async () => {
 	const events: string[] = []
 
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		events.push('callback')
 		return {
 			[Symbol.dispose]() {
@@ -110,9 +110,9 @@ test('makeInterval - cleanup is called before each callback execution', async ()
 	}
 })
 
-test('makeInterval - disposer calls cleanup', () => {
+test('createInterval - disposer calls cleanup', () => {
 	let cleanupCalled = false
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		return {
 			[Symbol.dispose]() {
 				cleanupCalled = true
@@ -124,8 +124,8 @@ test('makeInterval - disposer calls cleanup', () => {
 	strictEqual(cleanupCalled, true, 'cleanup should be called when disposed')
 })
 
-test('makeInterval - multiple disposals are safe', () => {
-	const dispose = makeInterval(() => {}, 100)
+test('createInterval - multiple disposals are safe', () => {
+	const dispose = createInterval(() => {}, 100)
 
 	doesNotThrow(() => {
 		dispose[Symbol.dispose]()
@@ -134,9 +134,9 @@ test('makeInterval - multiple disposals are safe', () => {
 	}, 'multiple disposal calls should be safe')
 })
 
-test('makeInterval - callback returning undefined is handled', async () => {
+test('createInterval - callback returning undefined is handled', async () => {
 	let callCount = 0
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		callCount++
 		return undefined
 	}, 50)
@@ -147,9 +147,9 @@ test('makeInterval - callback returning undefined is handled', async () => {
 	ok(callCount >= 3, 'callback should be called multiple times even when returning undefined')
 })
 
-test('makeInterval - callback can return various values', async () => {
+test('createInterval - callback can return various values', async () => {
 	let callCount = 0
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		callCount++
 		// Return undefined or a cleanup disposable - both are valid
 		if (callCount % 2 === 0) {
@@ -164,9 +164,9 @@ test('makeInterval - callback can return various values', async () => {
 	ok(callCount >= 2, 'callback should be called multiple times')
 })
 
-test('makeInterval - zero interval works', async () => {
+test('createInterval - zero interval works', async () => {
 	let callCount = 0
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		callCount++
 	}, 0)
 
@@ -176,9 +176,9 @@ test('makeInterval - zero interval works', async () => {
 	ok(callCount >= 3, 'callback should be called multiple times even with 0 interval')
 })
 
-test('makeInterval - large interval works', () => {
+test('createInterval - large interval works', () => {
 	let callCount = 0
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		callCount++
 	}, 10000)
 
@@ -186,11 +186,11 @@ test('makeInterval - large interval works', () => {
 	dispose[Symbol.dispose]()
 })
 
-test('makeInterval - callback not throwing error works', async () => {
+test('createInterval - callback not throwing error works', async () => {
 	let callCount = 0
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		callCount++
-		// Note: errors in callbacks are NOT caught by makeInterval
+		// Note: errors in callbacks are NOT caught by createInterval
 		// This test verifies normal operation without errors
 	}, 50)
 
@@ -200,15 +200,15 @@ test('makeInterval - callback not throwing error works', async () => {
 	ok(callCount >= 2, 'callback should be called multiple times')
 })
 
-test('makeInterval - cleanup without errors works', async () => {
+test('createInterval - cleanup without errors works', async () => {
 	let callCount = 0
 	let cleanupCount = 0
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		callCount++
 		return {
 			[Symbol.dispose]() {
 				cleanupCount++
-				// Note: errors in cleanup are NOT caught by makeInterval
+				// Note: errors in cleanup are NOT caught by createInterval
 				// This test verifies normal cleanup operation
 			},
 		}
@@ -221,10 +221,10 @@ test('makeInterval - cleanup without errors works', async () => {
 	ok(cleanupCount >= 1, 'cleanup should be called')
 })
 
-test('makeInterval - dispose after callback execution', async () => {
+test('createInterval - dispose after callback execution', async () => {
 	let callCount = 0
 
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		callCount++
 	}, 50)
 
@@ -238,11 +238,11 @@ test('makeInterval - dispose after callback execution', async () => {
 	ok(callCount >= 2, 'callback should have been called at least twice before disposal')
 })
 
-test('makeInterval - state is maintained across calls', async () => {
+test('createInterval - state is maintained across calls', async () => {
 	const values: number[] = []
 	let counter = 0
 
-	const dispose = makeInterval(() => {
+	const dispose = createInterval(() => {
 		counter++
 		values.push(counter)
 	}, 50)
