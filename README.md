@@ -36,6 +36,7 @@ npm i jrx
 - [`createTransition(cb, durationMs)`](#createTransitioncb-durationms) - Progress-based animations
 - [`computed(fn, getDeps?)`](#computedfn-getdeps) - Memoized computed values
 - [`retry(cb, backoffSec?)`](#retrycb-backoffsec) - Retry with exponential backoff
+- [`assignDispose(value, disposable)`](#assigndisposevalue-disposable) - Attach a `Symbol.dispose` to any value
 
 ## Naming convention
 
@@ -304,6 +305,41 @@ const data = await r // undefined
 **Parameters:**
 - `cb`: Callback that returns `Disposable & (T | Promise<T>)`. Receives `{ resetBackoff() }` to reset the backoff counter.
 - `backoffSec`: Array of retry delays in seconds. Use `-1` for infinite retries with the last delay. Default: `[5, 5, 10, 10, 20, 20, 40, 40, 60, -1]`
+
+### `assignDispose(value, disposable)`
+
+Attaches a `Symbol.dispose` to an existing value (object, function, array, promise, etc.) that delegates to a given `Disposable`. Returns the same value, now also typed as `Disposable`.
+
+This is useful when a function needs to return a meaningful value **and** be disposable — for example, returning a promise, a function, or a tuple from a factory while still allowing the caller to clean up the underlying resources.
+
+```typescript
+import {assignDispose} from 'jrx'
+
+function makeThing() {
+  using stack = new DisposableStack()
+  stack.defer(() => console.log('cleanup'))
+
+  const obj = {value: 42}
+  return assignDispose(obj, stack.move())
+}
+```
+
+Async factory — wrap an in-flight promise so the caller can dispose the underlying resources mid-flight:
+
+```typescript
+import {assignDispose} from 'jrx'
+
+function loadThing() {
+  const stack = new DisposableStack()
+  return assignDispose(
+    (async () => {
+      const res = await fetch('/api/data', {signal: stack.adopt(new AbortController(), c => c.abort()).signal})
+      return await res.json()
+    })(),
+    stack,
+  )
+}
+```
 
 ## Cleanup Pattern
 
