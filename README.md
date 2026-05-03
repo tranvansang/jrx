@@ -341,6 +341,8 @@ function loadThing() {
 }
 ```
 
+If `value` is itself a `Disposable`, disposing the returned value disposes `value` first, then `disposable`.
+
 ## Cleanup Pattern
 
 All effect functions return a `Disposable` object that stops the effect and runs any pending cleanup:

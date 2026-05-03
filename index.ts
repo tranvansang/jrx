@@ -141,7 +141,11 @@ export function createTransition(cb: (progress: number) => undefined | Disposabl
 }
 
 export function assignDispose<T extends object>(value: T, disposable: Disposable) {
+	const valueDispose = (value as any)?.[Symbol.dispose]?.bind(value)
 	return Object.assign(value, {
-		[Symbol.dispose]: disposable[Symbol.dispose].bind(disposable),
+		[Symbol.dispose]() {
+			valueDispose?.()
+			disposable[Symbol.dispose]()
+		}
 	})
 }

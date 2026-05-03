@@ -1,5 +1,5 @@
 import {test} from 'node:test'
-import {ok, strictEqual} from 'node:assert'
+import {deepStrictEqual, ok, strictEqual} from 'node:assert'
 import {assignDispose} from '../index.js'
 
 test('assignDispose - returns the original value', () => {
@@ -132,3 +132,80 @@ test('assignDispose - works with a Promise as the value', async () => {
 	result[Symbol.dispose]()
 	strictEqual(disposed, true)
 })
+
+test('assignDispose - disposes value when value is itself a Disposable', () => {
+	let valueDisposed = false
+	let outerDisposed = false
+
+	const value = {
+		foo: 'bar',
+		[Symbol.dispose]() { valueDisposed = true },
+	}
+	const outer = {
+		[Symbol.dispose]() { outerDisposed = true },
+	}
+
+	const result = assignDispose(value, outer)
+	result[Symbol.dispose]()
+	strictEqual(valueDisposed, true, 'value\'s own dispose should run')
+	strictEqual(outerDisposed, true, 'outer disposable should also run')
+})
+
+test('assignDispose - disposes value first, then the disposable', () => {
+	const order: string[] = []
+
+	const value = {
+		[Symbol.dispose]() { order.push('value') },
+	}
+	const outer = {
+		[Symbol.dispose]() { order.push('outer') },
+	}
+
+	const result = assignDispose(value, outer)
+	result[Symbol.dispose]()
+	deepStrictEqual(order, ['value', 'outer'], 'value must be disposed before the disposable')
+})
+
+test('assignDispose - disposes a DisposableStack value before the outer disposable', () => {
+	const order: string[] = []
+
+	const inner = new DisposableStack()
+	inner.defer(() => order.push('inner-stack'))
+
+	const outer = new DisposableStack()
+	outer.defer(() => order.push('outer-stack'))
+
+	const result = assignDispose(inner, outer)
+	result[Symbol.dispose]()
+	deepStrictEqual(order, ['inner-stack', 'outer-stack'])
+	strictEqual(inner.disposed, true)
+	strictEqual(outer.disposed, true)
+})
+
+test('assignDispose - value\'s dispose is invoked with value as `this`', () => {
+	let capturedThis: unknown
+	const value = {
+		marker: 'value',
+		[Symbol.dispose](this: unknown) { capturedThis = this },
+	}
+	const outer = {
+		[Symbol.dispose]() {},
+	}
+
+	const result = assignDispose(value, outer)
+	result[Symbol.dispose]()
+	strictEqual(capturedThis, value, 'value\'s dispose should run with value as this')
+})
+
+test('assignDispose - outer still disposes if value has no Symbol.dispose', () => {
+	const obj = {foo: 'bar'} as {foo: string; [Symbol.dispose]?: () => void}
+	let disposed = false
+	const outer = {
+		[Symbol.dispose]() { disposed = true },
+	}
+
+	const result = assignDispose(obj, outer)
+	result[Symbol.dispose]()
+	strictEqual(disposed, true)
+})
+
