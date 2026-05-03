@@ -18,7 +18,6 @@ npm i jrx
 
 - Automatic cleanup for all effects and subscriptions
 - Built on the native `DisposableStack` / `AsyncDisposableStack` API
-- Retry logic with exponential backoff and cancellation
 - Zero dependencies
 - Composable reactive utilities
 - Browser and Node.js compatible
@@ -34,8 +33,6 @@ npm i jrx
 - [`createAnimationFrameLoop(cb)`](#createAnimationFrameloopcb) - Animation frame loops
 - [`createTimeout(cb, ms)`](#createTimeoutcb-ms) - Timeouts with cleanup
 - [`createTransition(cb, durationMs)`](#createTransitioncb-durationms) - Progress-based animations
-- [`computed(fn, getDeps?)`](#computedfn-getdeps) - Memoized computed values
-- [`retry(cb, backoffSec?)`](#retrycb-backoffsec) - Retry with exponential backoff
 - [`assignDispose(value, disposable)`](#assigndisposevalue-disposable) - Attach a `Symbol.dispose` to any value
 
 ## Naming convention
@@ -235,76 +232,6 @@ const handle = createTransition((progress) => {
 
 handle[Symbol.dispose]()
 ```
-
-### `computed(fn, getDeps?)`
-
-Creates a memoized computed value with optional dependency tracking.
-
-```typescript
-import {computed} from 'jrx'
-
-// Without dependencies - always recomputes
-const value1 = computed(() => expensiveCalculation())
-console.log(value1.value) // Computed
-console.log(value1.value) // Computed again
-
-// With dependencies - memoizes when deps unchanged
-let a = 1, b = 2
-const value2 = computed(
-  () => a + b,
-  () => [a, b] // Dependencies
-)
-
-console.log(value2.value) // Computed: 3
-console.log(value2.value) // Cached: 3
-
-a = 10
-console.log(value2.value) // Recomputed: 12
-```
-
-### `retry(cb, backoffSec?)`
-
-Retries an operation with exponential backoff on failure. Returns `Disposable & Promise<T>`.
-
-**Default backoff:** `[5, 5, 10, 10, 20, 20, 40, 40, 60, -1]` seconds (where `-1` means retry forever with 60s delay)
-
-```typescript
-import {retry} from 'jrx'
-
-// Basic usage - retries with default backoff
-const result = await retry(({resetBackoff}) => {
-  const promise = fetch('/api/data').then((r) => r.json())
-  return Object.assign(promise, {[Symbol.dispose]() {}})
-})
-
-// Custom backoff schedule (in seconds)
-await retry(
-  () => {
-    const promise = fetchData()
-    return Object.assign(promise, {[Symbol.dispose]() {}})
-  },
-  [1, 2, 5, 10, -1], // -1 means retry forever with last delay
-)
-
-// Cancellation via Disposable
-const r = retry(
-  ({resetBackoff}) => {
-    const promise = fetchData()
-    return Object.assign(promise, {[Symbol.dispose]() { /* cancel */ }})
-  },
-  [5, 10, 20, 40, -1],
-)
-
-// Cancel the retry loop
-r[Symbol.dispose]()
-
-// Returns undefined when disposed
-const data = await r // undefined
-```
-
-**Parameters:**
-- `cb`: Callback that returns `Disposable & (T | Promise<T>)`. Receives `{ resetBackoff() }` to reset the backoff counter.
-- `backoffSec`: Array of retry delays in seconds. Use `-1` for infinite retries with the last delay. Default: `[5, 5, 10, 10, 20, 20, 40, 40, 60, -1]`
 
 ### `assignDispose(value, disposable)`
 

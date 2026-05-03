@@ -1,8 +1,3 @@
-import retry from './retry.js'
-import computed from './computed.js'
-
-export {retry, computed}
-
 export function makeReset() {
 	let stack = new DisposableStack()
 	return () => {

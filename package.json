@@ -19,11 +19,7 @@
 	},
 	"files": [
 		"index.js",
-		"index.d.ts",
-		"retry.js",
-		"retry.d.ts",
-		"computed.js",
-		"computed.d.ts"
+		"index.d.ts"
 	],
 	"devDependencies": {
 		"@types/node": "^25.2.1",
