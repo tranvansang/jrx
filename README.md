@@ -34,6 +34,7 @@ npm i jrx
 - [`createTimeout(cb, ms)`](#createTimeoutcb-ms) - Timeouts with cleanup
 - [`createTransition(cb, durationMs)`](#createTransitioncb-durationms) - Progress-based animations
 - [`assignDispose(value, disposable)`](#assigndisposevalue-disposable) - Attach a `Symbol.dispose` to any value
+- [`assignDisposeAsync(value, disposable)`](#assigndisposeasyncvalue-disposable) - Attach a `Symbol.asyncDispose` to any value
 
 ## Naming convention
 
@@ -251,14 +252,18 @@ function makeThing() {
 }
 ```
 
-Async factory — wrap an in-flight promise so the caller can dispose the underlying resources mid-flight:
+If `value` is itself a `Disposable`, disposing the returned value disposes `value` first, then `disposable`.
+
+### `assignDisposeAsync(value, disposable)`
+
+Like `assignDispose`, but takes an `AsyncDisposable` and attaches a `Symbol.asyncDispose` instead. Disposal is awaited — use this whenever cleanup is asynchronous and the value will be released with `await using` or `AsyncDisposableStack.use()`.
 
 ```typescript
-import {assignDispose} from 'jrx'
+import {assignDisposeAsync} from 'jrx'
 
 function loadThing() {
-  const stack = new DisposableStack()
-  return assignDispose(
+  const stack = new AsyncDisposableStack()
+  return assignDisposeAsync(
     (async () => {
       const res = await fetch('/api/data', {signal: stack.adopt(new AbortController(), c => c.abort()).signal})
       return await res.json()
@@ -266,9 +271,16 @@ function loadThing() {
     stack,
   )
 }
+
+{
+  await using thing = loadThing()
+  console.log(await thing)
+} // stack is awaited here
 ```
 
-If `value` is itself a `Disposable`, disposing the returned value disposes `value` first, then `disposable`.
+If `value` has its own `Symbol.asyncDispose`, it is awaited first, then the `disposable`.
+
+> Pick the variant that matches your cleanup: `assignDispose` attaches only `Symbol.dispose` (sync, use with `using`), `assignDisposeAsync` attaches only `Symbol.asyncDispose` (async, use with `await using`). Each attaches a single symbol so the type system steers you to the correct disposal form.
 
 ## Cleanup Pattern
 

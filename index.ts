@@ -141,6 +141,16 @@ export function assignDispose<T extends object>(value: T, disposable: Disposable
 		[Symbol.dispose]() {
 			valueDispose?.()
 			disposable[Symbol.dispose]()
-		}
+		},
+	})
+}
+
+export function assignDisposeAsync<T extends object>(value: T, disposable: AsyncDisposable) {
+	const valueDispose = (value as any)?.[Symbol.asyncDispose]?.bind(value)
+	return Object.assign(value, {
+		async [Symbol.asyncDispose]() {
+			await valueDispose?.()
+			await disposable[Symbol.asyncDispose]()
+		},
 	})
 }

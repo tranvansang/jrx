@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import {deepStrictEqual, ok, strictEqual} from 'node:assert'
-import {assignDispose} from '../index.js'
+import {assignDispose, assignDisposeAsync} from '../index.js'
 
 test('assignDispose - returns the original value', () => {
 	const obj = {foo: 'bar'}
@@ -207,5 +207,106 @@ test('assignDispose - outer still disposes if value has no Symbol.dispose', () =
 	const result = assignDispose(obj, outer)
 	result[Symbol.dispose]()
 	strictEqual(disposed, true)
+})
+
+test('assignDisposeAsync - returns the original value with Symbol.asyncDispose', () => {
+	const obj = {foo: 'bar'}
+	const stack = new AsyncDisposableStack()
+	const result = assignDisposeAsync(obj, stack)
+	strictEqual(result, obj, 'should return the same object reference')
+	ok(typeof result[Symbol.asyncDispose] === 'function', 'value should have Symbol.asyncDispose')
+})
+
+test('assignDisposeAsync - awaits the underlying async disposable', async () => {
+	let disposed = false
+	const disposable = {
+		async [Symbol.asyncDispose]() {
+			await new Promise(resolve => setTimeout(resolve, 10))
+			disposed = true
+		},
+	}
+
+	const result = assignDisposeAsync({foo: 'bar'}, disposable)
+	await result[Symbol.asyncDispose]()
+	strictEqual(disposed, true, 'should wait for the async disposable to settle')
+})
+
+test('assignDisposeAsync - disposes value before the disposable, awaiting each', async () => {
+	const order: string[] = []
+
+	const value = {
+		async [Symbol.asyncDispose]() {
+			await new Promise(resolve => setTimeout(resolve, 10))
+			order.push('value')
+		},
+	}
+	const outer = {
+		async [Symbol.asyncDispose]() {
+			await new Promise(resolve => setTimeout(resolve, 10))
+			order.push('outer')
+		},
+	}
+
+	const result = assignDisposeAsync(value, outer)
+	await result[Symbol.asyncDispose]()
+	deepStrictEqual(order, ['value', 'outer'], 'value must be fully disposed before the disposable')
+})
+
+test('assignDisposeAsync - disposes value via its own Symbol.asyncDispose', async () => {
+	let valueDisposed = false
+	const value = {
+		async [Symbol.asyncDispose]() { valueDisposed = true },
+	}
+	const outer = {
+		async [Symbol.asyncDispose]() {},
+	}
+
+	const result = assignDisposeAsync(value, outer)
+	await result[Symbol.asyncDispose]()
+	strictEqual(valueDisposed, true, 'value\'s async dispose should run')
+})
+
+test('assignDisposeAsync - ignores a value\'s sync Symbol.dispose', async () => {
+	let valueDisposed = false
+	const value = {
+		[Symbol.dispose]() { valueDisposed = true },
+	}
+	let outerDisposed = false
+	const outer = {
+		async [Symbol.asyncDispose]() { outerDisposed = true },
+	}
+
+	const result = assignDisposeAsync(value, outer)
+	await result[Symbol.asyncDispose]()
+	strictEqual(valueDisposed, false, 'value\'s sync dispose is not called by assignDisposeAsync')
+	strictEqual(outerDisposed, true, 'disposable is still disposed')
+})
+
+test('assignDisposeAsync - outer still disposes if value has no dispose', async () => {
+	const obj = {foo: 'bar'}
+	let disposed = false
+	const outer = {
+		async [Symbol.asyncDispose]() { disposed = true },
+	}
+
+	const result = assignDisposeAsync(obj, outer)
+	await result[Symbol.asyncDispose]()
+	strictEqual(disposed, true)
+})
+
+test('assignDisposeAsync - works with `await using` declaration', async () => {
+	let disposed = false
+
+	function makeThing() {
+		const stack = new AsyncDisposableStack()
+		stack.defer(() => { disposed = true })
+		return assignDisposeAsync({value: 42}, stack)
+	}
+
+	{
+		await using thing = makeThing()
+		strictEqual(thing.value, 42)
+	}
+	strictEqual(disposed, true, 'should dispose when leaving the await using scope')
 })
 
